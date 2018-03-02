@@ -15,7 +15,7 @@ for both Mac and iOS but it has some drawbacks:
   API, so it's unclear how "true" it would be to developing for a native
   implementation.
   2. It's still in pre-release development (v0.19 as of February 2018.)
-  3. It's free to try but a license is $150 if you want to release anything
+  3. It's free to try but a license is $150 if you want to release something
   that uses it.
 - LunarG offers [SDKs](https://www.lunarg.com/vulkan-sdk/) for Windows and
 Linux but I don't believe the GPU in my laptop from 2010 would support it.
@@ -33,8 +33,8 @@ friendly introduction to using Vulkan on Android. I say that because it is a
 single project with dozens and dozens of build targets that share code,
 resources and configuration. It's convoluted.
 
-For me, this has also been a bit of a crash course in modern C/C++ development,
-NDK development,
+For me, learning Vulkan is also a bit of a crash course in modern C/C++
+development, NDK development,
 [native Activities](https://developer.android.com/ndk/guides/concepts.html#naa)
 and [CMake](https://cmake.org/). So the more I can strip away clutter and start
 learning about Vulkan itself, the better.
