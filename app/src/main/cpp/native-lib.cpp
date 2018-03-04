@@ -2,6 +2,7 @@
 #include <cstring>
 
 #include "AndroidLogging.h"
+#include "vulkan_wrapper/vulkan_wrapper.h"
 
 struct State {
 	android_app *app;
@@ -66,7 +67,10 @@ void handleAppCommand(struct android_app* app, int32_t command) {
 }
 
 void initializeDisplay(android_app *app) {
+	uint32_t extensionCount = 0;
+	vkEnumerateInstanceExtensionProperties(nullptr, &extensionCount, nullptr);
 
+	LOG_INFO("%d extensions supported", extensionCount);
 }
 
 void deinitializeDisplay(android_app *app) {
@@ -74,6 +78,8 @@ void deinitializeDisplay(android_app *app) {
 }
 
 void android_main(android_app *app) {
+	InitVulkan();
+
 	app -> onAppCmd = handleAppCommand;
 	app -> onInputEvent = handleInput;
 	app -> userData = buildState(app);

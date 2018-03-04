@@ -17,7 +17,8 @@ add_library( # Sets the name of the library.
              SHARED
 
              # Provides a relative path to your source file(s).
-             src/main/cpp/native-lib.cpp )
+             src/main/cpp/native-lib.cpp
+             src/main/cpp/vulkan_wrapper/vulkan_wrapper.cpp )
 
 # build native_app_glue as a static lib
 add_library(native_app_glue STATIC
