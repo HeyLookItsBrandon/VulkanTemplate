@@ -1,5 +1,4 @@
 #include <android_native_app_glue.h>
-#include <cstring>
 #include <vector>
 
 #include "AndroidLogging.h"
@@ -47,13 +46,12 @@ void initializeDisplay(android_app *app);
 void deinitializeDisplay(android_app *app);
 
 
-void* buildState(android_app *app) {
-	struct State state;
-	std::memset(&state, 0, sizeof(state));
+State buildState(android_app *app) {
+	struct State state = {};
 
 	state.app = app;
 
-	return &state;
+	return state;
 }
 
 State getState(android_app *app) {
@@ -121,11 +119,13 @@ void android_main(android_app *app) {
 
 	app -> onAppCmd = handleAppCommand;
 	app -> onInputEvent = handleInput;
-	app -> userData = buildState(app);
 
-	// Setup if applicable
+	// Declaring this as static solves the problem of leaking a reference to a local variable and
+	// since this method reaching its end is essentially the end of the application, this *seems*
+	// okay. But I wonder what a better alternatives exist.
+	// of going about this.
+	static State state = buildState(app);
+	app -> userData = &state;
 
 	processEvents(app);
-
-	// Cleanup if applicable
 }
