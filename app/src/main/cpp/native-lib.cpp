@@ -1,15 +1,51 @@
 #include <android_native_app_glue.h>
 #include <cstring>
+#include <vector>
 
 #include "AndroidLogging.h"
 #include "vulkan_wrapper/vulkan_wrapper.h"
+
+std::vector<const char *> instanceExtensions = {
+		VK_KHR_SURFACE_EXTENSION_NAME,
+		VK_KHR_ANDROID_SURFACE_EXTENSION_NAME };
+
+std::vector<const char *> deviceExtensions = {
+		VK_KHR_SWAPCHAIN_EXTENSION_NAME };
 
 struct State {
 	android_app *app;
 };
 
+VkApplicationInfo createApplicationInfo() {
+	VkApplicationInfo info = {};
+
+	info.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
+	info.pApplicationName = "Hello Triangle";
+	info.applicationVersion = VK_MAKE_VERSION(1, 0, 0);
+	info.pEngineName = "No Engine";
+	info.engineVersion = VK_MAKE_VERSION(1, 0, 0);
+	info.apiVersion = VK_API_VERSION_1_0;
+
+	return info;
+}
+
+VkInstanceCreateInfo createInstanceCreationInfo(VkApplicationInfo& applicationInfo) {
+	VkInstanceCreateInfo createInfo = {};
+
+	createInfo.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
+	createInfo.pApplicationInfo = &applicationInfo;
+
+	createInfo.enabledExtensionCount = static_cast<uint32_t>(instanceExtensions.size());
+	createInfo.ppEnabledExtensionNames = instanceExtensions.data();
+
+	createInfo.enabledLayerCount = 0;
+
+	return createInfo;
+}
+
 void initializeDisplay(android_app *app);
 void deinitializeDisplay(android_app *app);
+
 
 void* buildState(android_app *app) {
 	struct State state;
@@ -67,10 +103,13 @@ void handleAppCommand(struct android_app* app, int32_t command) {
 }
 
 void initializeDisplay(android_app *app) {
-	uint32_t extensionCount = 0;
-	vkEnumerateInstanceExtensionProperties(nullptr, &extensionCount, nullptr);
+	VkApplicationInfo appInfo = createApplicationInfo();
+	VkInstanceCreateInfo instanceCreationInfo = createInstanceCreationInfo(appInfo);
 
-	LOG_INFO("%d extensions supported", extensionCount);
+	VkInstance instance;
+	VkResult result = vkCreateInstance(&instanceCreationInfo, nullptr, &instance);
+
+	LOG_INFO("Instance creation result: %d", result);
 }
 
 void deinitializeDisplay(android_app *app) {
