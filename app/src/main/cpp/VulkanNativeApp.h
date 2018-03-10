@@ -6,14 +6,13 @@
 
 #include <vector>
 
-struct VulkanSession {
-};
-
-class VulkanNativeApp : public BaseNativeApp<VulkanSession> {
+class VulkanNativeApp : public BaseNativeApp {
 	protected:
-		VulkanSession* createUserData();
 		void initializeDisplay(android_app *app);
 		void deinitializeDisplay(android_app *app);
+
+		void onWindowInitialized() override;
+		void onWindowTerminated() override;
 
 	private:
 		VkApplicationInfo createApplicationInfo();

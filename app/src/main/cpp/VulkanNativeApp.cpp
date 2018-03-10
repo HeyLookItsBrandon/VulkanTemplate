@@ -1,4 +1,5 @@
 #include "VulkanNativeApp.h"
+#include "AndroidLogging.h"
 
 std::vector<const char *> instanceExtensions = {
 		VK_KHR_SURFACE_EXTENSION_NAME,
@@ -8,8 +9,12 @@ std::vector<const char *> deviceExtensions = {
 		VK_KHR_SWAPCHAIN_EXTENSION_NAME };
 
 
-VulkanSession* VulkanNativeApp::createUserData() {
-	return new VulkanSession();
+void VulkanNativeApp::onWindowInitialized() {
+	initializeDisplay(getApplication());
+}
+
+void VulkanNativeApp::onWindowTerminated() {
+	deinitializeDisplay(getApplication());
 }
 
 void VulkanNativeApp::initializeDisplay(android_app *app) {
