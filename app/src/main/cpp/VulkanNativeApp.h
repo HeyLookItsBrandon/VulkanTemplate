@@ -8,13 +8,14 @@
 
 class VulkanNativeApp : public BaseNativeApp {
 	protected:
-		void initializeDisplay(android_app *app);
-		void deinitializeDisplay(android_app *app);
+		VkInstance* initializeDisplay();
+		void deinitializeDisplay(VkInstance*);
 
 		void onWindowInitialized() override;
 		void onWindowTerminated() override;
 
 	private:
+		VkInstance* vulkanInstance;
 		VkApplicationInfo createApplicationInfo();
 		VkInstanceCreateInfo createInstanceCreationInfo(VkApplicationInfo& applicationInfo);
 };

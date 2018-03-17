@@ -1,5 +1,11 @@
 apply plugin: 'com.android.application'
 
+// According to https://github.com/googlesamples/android-vulkan-tutorials/blob/master/README.md,
+// this block forces the tools to generate local.properties, which defines ndk.dir.
+Properties properties = new Properties()
+properties.load(project.rootProject.file('local.properties').newDataInputStream())
+def ndkDir = properties.getProperty('ndk.dir')
+
 android {
     compileSdkVersion 26
     defaultConfig {
@@ -24,6 +30,14 @@ android {
     externalNativeBuild {
         cmake {
             path "CMakeLists.txt"
+        }
+    }
+    sourceSets {
+        main {
+            jniLibs {
+                // This provides us with access to pre-defined validation layers from LunarG and Google
+                srcDirs = ["${ndkDir}/sources/third_party/vulkan/src/build-android/jniLibs"]
+            }
         }
     }
 }

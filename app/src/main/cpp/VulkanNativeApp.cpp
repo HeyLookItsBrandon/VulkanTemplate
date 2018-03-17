@@ -1,5 +1,6 @@
 #include "VulkanNativeApp.h"
 #include "AndroidLogging.h"
+#include "CapabilityUtil.h"
 
 std::vector<const char *> instanceExtensions = {
 		VK_KHR_SURFACE_EXTENSION_NAME,
@@ -8,27 +9,33 @@ std::vector<const char *> instanceExtensions = {
 std::vector<const char *> deviceExtensions = {
 		VK_KHR_SWAPCHAIN_EXTENSION_NAME };
 
+std::vector<const char *> validationLayers = { };
+
 
 void VulkanNativeApp::onWindowInitialized() {
-	initializeDisplay(getApplication());
+	vulkanInstance = initializeDisplay();
 }
 
 void VulkanNativeApp::onWindowTerminated() {
-	deinitializeDisplay(getApplication());
+	deinitializeDisplay(vulkanInstance);
 }
 
-void VulkanNativeApp::initializeDisplay(android_app *app) {
+VkInstance* VulkanNativeApp::initializeDisplay() {
+	logSupportedInstanceExtensions();
+	logSupportedValidationLayers();
+
 	VkApplicationInfo appInfo = createApplicationInfo();
 	VkInstanceCreateInfo instanceCreationInfo = createInstanceCreationInfo(appInfo);
 
-	VkInstance instance;
-	VkResult result = vkCreateInstance(&instanceCreationInfo, nullptr, &instance);
-
+	VkInstance* instance = new VkInstance;
+	VkResult result = vkCreateInstance(&instanceCreationInfo, nullptr, instance);
 	LOG_INFO("Instance creation result: %d", result);
+
+	return instance;
 }
 
-void VulkanNativeApp::deinitializeDisplay(android_app *app) {
-
+void VulkanNativeApp::deinitializeDisplay(VkInstance* instance) {
+	vkDestroyInstance(*instance, nullptr);
 }
 
 VkApplicationInfo VulkanNativeApp::createApplicationInfo() {
