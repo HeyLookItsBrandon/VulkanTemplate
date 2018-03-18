@@ -7,6 +7,8 @@
 #include <vector>
 
 class VulkanNativeApp : public BaseNativeApp {
+	public:
+		VulkanNativeApp();
 	protected:
 		VkInstance* initializeDisplay();
 		void deinitializeDisplay(VkInstance*);

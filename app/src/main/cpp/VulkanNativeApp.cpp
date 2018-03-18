@@ -2,15 +2,21 @@
 #include "AndroidLogging.h"
 #include "CapabilityUtil.h"
 
-std::vector<const char *> instanceExtensions = {
+const std::vector<const char *> INSTANCE_EXTENSIONS_NAMES = {
 		VK_KHR_SURFACE_EXTENSION_NAME,
 		VK_KHR_ANDROID_SURFACE_EXTENSION_NAME };
 
-std::vector<const char *> deviceExtensions = {
+const std::vector<const char *> DEVICE_EXTENSIONS_NAMES = {
 		VK_KHR_SWAPCHAIN_EXTENSION_NAME };
 
-std::vector<const char *> validationLayers = { };
+const std::vector<const char *> VALIDATION_LAYER_NAMES = {
+		"VK_LAYER_LUNARG_core_validation",
+		"VK_LAYER_LUNARG_parameter_validation" };
 
+
+VulkanNativeApp::VulkanNativeApp() {
+	InitVulkan();
+}
 
 void VulkanNativeApp::onWindowInitialized() {
 	vulkanInstance = initializeDisplay();
@@ -42,7 +48,7 @@ VkApplicationInfo VulkanNativeApp::createApplicationInfo() {
 	VkApplicationInfo info = {};
 
 	info.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
-	info.pApplicationName = "Hello Triangle";
+	info.pApplicationName = "Vulkan Template";
 	info.applicationVersion = VK_MAKE_VERSION(1, 0, 0);
 	info.pEngineName = "No Engine";
 	info.engineVersion = VK_MAKE_VERSION(1, 0, 0);
@@ -57,10 +63,12 @@ VkInstanceCreateInfo VulkanNativeApp::createInstanceCreationInfo(VkApplicationIn
 	createInfo.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
 	createInfo.pApplicationInfo = &applicationInfo;
 
-	createInfo.enabledExtensionCount = static_cast<uint32_t>(instanceExtensions.size());
-	createInfo.ppEnabledExtensionNames = instanceExtensions.data();
+	createInfo.enabledExtensionCount = (uint32_t) INSTANCE_EXTENSIONS_NAMES.size();
+	createInfo.ppEnabledExtensionNames = INSTANCE_EXTENSIONS_NAMES.data();
 
-	createInfo.enabledLayerCount = 0;
+	std::vector<const char *> availableLayers = pruneValidationLayers(VALIDATION_LAYER_NAMES);
+	createInfo.enabledLayerCount = (uint32_t) availableLayers.size();
+	createInfo.ppEnabledLayerNames = availableLayers.data();
 
 	return createInfo;
 }

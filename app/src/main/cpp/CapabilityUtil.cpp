@@ -1,3 +1,4 @@
+#include <string.h>
 #include "CapabilityUtil.h"
 #include "AndroidLogging.h"
 
@@ -23,6 +24,32 @@ void logSupportedValidationLayers() {
 				 layer.implementationVersion,
 				 layer.description);
 	}
+}
+
+std::vector<const char *> pruneValidationLayers(std::vector<const char *> requestedLayerNames) {
+	std::vector<VkLayerProperties> supportedLayers = getSupportedValidationLayers();
+	std::vector<const char *> supportedLayerNames;
+
+	for(int i = 0; i < requestedLayerNames.size(); i++) {
+		const char* requestedLayerName = requestedLayerNames[i];
+
+		for(int j = 0; j < supportedLayers.size(); j++) {
+			VkLayerProperties supportedLayer = supportedLayers[j];
+
+			if(strcmp(requestedLayerName, supportedLayer.layerName) == 0) {
+				supportedLayerNames.push_back(requestedLayerName);
+
+				// Workaround for C++ not having labeled loop/continues, to continue the outer loop
+				goto skipUnsupportedLogging;
+			}
+		}
+
+		LOG_WARN("Unsupported validation layer requested: %s", requestedLayerName);
+
+		skipUnsupportedLogging:;
+	}
+
+	return supportedLayerNames;
 }
 
 std::vector<VkExtensionProperties> getSupportedInstanceExtensions() {
