@@ -6,7 +6,8 @@
 
 std::vector<VkLayerProperties> getSupportedValidationLayers();
 void logSupportedValidationLayers();
-std::vector<const char *> pruneValidationLayers(std::vector<const char *> requestedLayerNames);
+std::vector<const char *> filterUnavailableValidationLayers(
+		std::vector<const char *> requestedLayerNames);
 
 std::vector<VkExtensionProperties> getSupportedInstanceExtensions();
 void logSupportedInstanceExtensions();

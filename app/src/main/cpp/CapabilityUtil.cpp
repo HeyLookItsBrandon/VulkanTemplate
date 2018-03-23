@@ -26,7 +26,8 @@ void logSupportedValidationLayers() {
 	}
 }
 
-std::vector<const char *> pruneValidationLayers(std::vector<const char *> requestedLayerNames) {
+std::vector<const char *> filterUnavailableValidationLayers(
+		std::vector<const char *> requestedLayerNames) {
 	std::vector<VkLayerProperties> supportedLayers = getSupportedValidationLayers();
 	std::vector<const char *> supportedLayerNames;
 

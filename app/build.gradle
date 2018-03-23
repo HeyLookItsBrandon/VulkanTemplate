@@ -36,6 +36,7 @@ android {
         main {
             jniLibs {
                 // This provides us with access to pre-defined validation layers from LunarG and Google
+                // https://developer.android.com/ndk/guides/graphics/validation-layer.html
                 srcDirs = ["${ndkDir}/sources/third_party/vulkan/src/build-android/jniLibs"]
             }
         }
@@ -44,5 +45,4 @@ android {
 
 dependencies {
     implementation fileTree(dir: 'libs', include: ['*.jar'])
-    testImplementation 'junit:junit:4.12'
 }
