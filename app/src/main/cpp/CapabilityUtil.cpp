@@ -1,4 +1,5 @@
-#include <string.h>
+#include <system_error>
+#include <cstring>
 #include "CapabilityUtil.h"
 #include "AndroidLogging.h"
 
@@ -16,9 +17,7 @@ void logSupportedValidationLayers() {
 	std::vector<VkLayerProperties> layers = getSupportedValidationLayers();
 
 	LOG_INFO("Found %lu supported validation layers.", layers.size());
-	for(int i=0; i<layers.size(); i++) {
-		VkLayerProperties layer = layers[i];
-
+	for(const VkLayerProperties& layer : layers) {
 		LOG_INFO("%s (%u) - %s",
 				 layer.layerName,
 				 layer.implementationVersion,
@@ -31,12 +30,8 @@ std::vector<const char *> filterUnavailableValidationLayers(
 	std::vector<VkLayerProperties> supportedLayers = getSupportedValidationLayers();
 	std::vector<const char *> supportedLayerNames;
 
-	for(int i = 0; i < requestedLayerNames.size(); i++) {
-		const char* requestedLayerName = requestedLayerNames[i];
-
-		for(int j = 0; j < supportedLayers.size(); j++) {
-			VkLayerProperties supportedLayer = supportedLayers[j];
-
+	for(const char* requestedLayerName : requestedLayerNames) {
+		for(const VkLayerProperties& supportedLayer : supportedLayers) {
 			if(strcmp(requestedLayerName, supportedLayer.layerName) == 0) {
 				supportedLayerNames.push_back(requestedLayerName);
 
@@ -67,11 +62,49 @@ void logSupportedInstanceExtensions() {
 	std::vector<VkExtensionProperties> extensions = getSupportedInstanceExtensions();
 
 	LOG_INFO("Found %lu supported instance extensions.", extensions.size());
-	for(int i=0; i < extensions.size(); i++) {
-		VkExtensionProperties extension = extensions[i];
-
+	for(const VkExtensionProperties& extension : extensions) {
 		LOG_INFO("%s (%i)",
 				 extension.extensionName,
 				 extension.specVersion);
 	}
+}
+
+std::vector<VkPhysicalDevice> getPhysicalDevices(VkInstance instance) {
+	uint32_t deviceCount = 0;
+	vkEnumeratePhysicalDevices(instance, &deviceCount, nullptr);
+
+	std::vector<VkPhysicalDevice> devices(deviceCount);
+	vkEnumeratePhysicalDevices(instance, &deviceCount, devices.data());
+
+	return devices;
+}
+
+std::vector<VkQueueFamilyProperties> getQueueFamilyProperties(VkPhysicalDevice device) {
+	uint32_t queueFamilyCount = 0;
+	vkGetPhysicalDeviceQueueFamilyProperties(device, &queueFamilyCount, nullptr);
+
+	std::vector<VkQueueFamilyProperties> queueFamilies(queueFamilyCount);
+	vkGetPhysicalDeviceQueueFamilyProperties(device, &queueFamilyCount, queueFamilies.data());
+
+	return queueFamilies;
+}
+
+void assertSuccess(VkResult result, std::string message) {
+	if(result != VK_SUCCESS) {
+		throw std::runtime_error(message.c_str());
+	}
+}
+
+VkPhysicalDeviceProperties getPhysicalDeviceProperties(VkPhysicalDevice device) {
+	VkPhysicalDeviceProperties deviceProperties;
+	vkGetPhysicalDeviceProperties(device, &deviceProperties);
+
+	return deviceProperties;
+}
+
+VkPhysicalDeviceFeatures getPhysicalDeviceFeatures(VkPhysicalDevice device) {
+	VkPhysicalDeviceFeatures deviceFeatures;
+	vkGetPhysicalDeviceFeatures(device, &deviceFeatures);
+
+	return deviceFeatures;
 }
