@@ -6,13 +6,14 @@
 
 #include <vector>
 #include <tuple>
+#include <memory>
 
 class VulkanNativeApp : public BaseNativeApp {
 	public:
 		VulkanNativeApp();
 	protected:
-		VkInstance* initializeDisplay();
-		void deinitializeDisplay(VkInstance*);
+		void initializeDisplay();
+		void deinitializeDisplay();
 
 		void onWindowInitialized() override;
 		void onWindowTerminated() override;
@@ -20,11 +21,12 @@ class VulkanNativeApp : public BaseNativeApp {
 		virtual void onReportingEvent(const char *message);
 
 	private:
-		VkInstance* vulkanInstance;
+		const bool debug;
+		VkInstance vulkanInstance = {};
 		VkDevice device = {};
 
 		// Debugging
-		VkDebugReportCallbackEXT reportCallback; // Used for validation layer callbacks
+		VkDebugReportCallbackEXT reportCallback = {};
 
 		VkApplicationInfo createApplicationInfo();
 		VkInstanceCreateInfo createInstanceCreationInfo(VkApplicationInfo& applicationInfo);

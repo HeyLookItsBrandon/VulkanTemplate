@@ -23,45 +23,55 @@ const std::vector<const char *> VALIDATION_LAYER_NAMES = {
 //		"VK_LAYER_GOOGLE_unique_objects"
 };
 
-VulkanNativeApp::VulkanNativeApp() {
+bool isDebugBuild() {
+	bool debug = false;
+    #ifndef NDEBUG
+        debug = true;
+    #endif
+
+	return debug;
+}
+
+VulkanNativeApp::VulkanNativeApp() : debug(isDebugBuild()) {
 	InitVulkan();
 }
 
 void VulkanNativeApp::onWindowInitialized() {
-	vulkanInstance = initializeDisplay();
+	initializeDisplay();
 }
 
 void VulkanNativeApp::onWindowTerminated() {
-	deinitializeDisplay(vulkanInstance);
+	deinitializeDisplay();
 }
 
-VkInstance* VulkanNativeApp::initializeDisplay() {
+void VulkanNativeApp::initializeDisplay() {
 	logSupportedInstanceExtensions();
 	logSupportedValidationLayers();
 
 	VkApplicationInfo appInfo = createApplicationInfo();
 	VkInstanceCreateInfo instanceCreationInfo = createInstanceCreationInfo(appInfo);
 
-	VkInstance* instance = new VkInstance;
-	VkResult instanceCreationResult = vkCreateInstance(&instanceCreationInfo, nullptr, instance);
+	VkResult instanceCreationResult = vkCreateInstance(&instanceCreationInfo, nullptr, &vulkanInstance);
 	LOG_INFO("Vulkan instance creation result: %d", instanceCreationResult);
 	assertSuccess(instanceCreationResult, "Vulkan instance creation unsuccessful.");
 
-	// Examples always seem to go straight to the lookup but InitVulkan() should have already looked
-	// it up from libvulkan.so. That never actually seems to be the case but as a best practice,
-	// don't bother looking the reference up if it's already available.
-	if(vkCreateDebugReportCallbackEXT == nullptr) {
-		vkCreateDebugReportCallbackEXT = reinterpret_cast<PFN_vkCreateDebugReportCallbackEXT>(
-				vkGetInstanceProcAddr(*instance, "vkCreateDebugReportCallbackEXT"));
+	if(debug) {
+		// Examples always seem to go straight to the lookup but InitVulkan() should have already looked
+		// it up from libvulkan.so. That never actually seems to be the case but as a best practice,
+		// don't bother looking the reference up if it's already available.
+		if(vkCreateDebugReportCallbackEXT == nullptr) {
+			vkCreateDebugReportCallbackEXT = reinterpret_cast<PFN_vkCreateDebugReportCallbackEXT>(
+					vkGetInstanceProcAddr(vulkanInstance, "vkCreateDebugReportCallbackEXT"));
+		}
+
+		VkDebugReportCallbackCreateInfoEXT reportCallbackCreationInfo = createReportCallbackInfo();
+		VkResult reportCallbackCreationResult = vkCreateDebugReportCallbackEXT(
+				vulkanInstance, &reportCallbackCreationInfo, nullptr, &reportCallback);
+		LOG_INFO("Vulkan report callback creation result: %d", reportCallbackCreationResult);
+		assertSuccess(reportCallbackCreationResult, "Failed to create report callback!");
 	}
 
-	VkDebugReportCallbackCreateInfoEXT reportCallbackCreationInfo = createReportCallbackInfo();
-	VkResult reportCallbackCreationResult = vkCreateDebugReportCallbackEXT(
-			*instance, &reportCallbackCreationInfo, nullptr, &reportCallback);
-	LOG_INFO("Vulkan report callback creation result: %d", reportCallbackCreationResult);
-	assertSuccess(reportCallbackCreationResult, "Failed to create report callback!");
-
-	std::vector<VkPhysicalDevice> physicalDevices = getPhysicalDevices(*instance);
+	std::vector<VkPhysicalDevice> physicalDevices = getPhysicalDevices(vulkanInstance);
 	LOG_DEBUG("Found %lu physical devices.", physicalDevices.size());
 	if (physicalDevices.size() == 0) {
 		throw std::runtime_error("No physical devices with Vulkan support were found.");
@@ -75,14 +85,20 @@ VkInstance* VulkanNativeApp::initializeDisplay() {
 
 	VkResult deviceCreationResult = vkCreateDevice(physicalDevice, &deviceCreationInfo, nullptr, &device);
 	assertSuccess(deviceCreationResult, "Failed to create logical device.");
-
-
-	return instance;
 }
 
-void VulkanNativeApp::deinitializeDisplay(VkInstance* instance) {
-	vkDestroyDebugReportCallbackEXT(*instance, reportCallback, nullptr);
-	vkDestroyInstance(*instance, nullptr);
+void VulkanNativeApp::deinitializeDisplay() {
+	vkDestroyDevice(device, nullptr);
+
+	if(debug) {
+		if(vkDestroyDebugReportCallbackEXT == nullptr) {
+			vkDestroyDebugReportCallbackEXT = reinterpret_cast<PFN_vkDestroyDebugReportCallbackEXT>(
+					vkGetInstanceProcAddr(vulkanInstance, "vkDestroyDebugReportCallbackEXT"));
+		}
+		vkDestroyDebugReportCallbackEXT(vulkanInstance, reportCallback, nullptr);
+	}
+
+	vkDestroyInstance(vulkanInstance, nullptr);
 }
 
 VkApplicationInfo VulkanNativeApp::createApplicationInfo() {
@@ -107,10 +123,14 @@ VkInstanceCreateInfo VulkanNativeApp::createInstanceCreationInfo(VkApplicationIn
 	createInfo.enabledExtensionCount = (uint32_t) INSTANCE_EXTENSION_NAMES.size();
 	createInfo.ppEnabledExtensionNames = INSTANCE_EXTENSION_NAMES.data();
 
-	std::vector<const char *> availableLayers =
-			filterUnavailableValidationLayers(VALIDATION_LAYER_NAMES);
-	createInfo.enabledLayerCount = (uint32_t) availableLayers.size();
-	createInfo.ppEnabledLayerNames = availableLayers.data();
+	if(debug) {
+		std::vector<const char *> availableLayers =
+				filterUnavailableValidationLayers(VALIDATION_LAYER_NAMES);
+		createInfo.enabledLayerCount = (uint32_t) availableLayers.size();
+		createInfo.ppEnabledLayerNames = availableLayers.data();
+	} else {
+		createInfo.enabledLayerCount = 0;
+	}
 
 	return createInfo;
 }
@@ -189,17 +209,14 @@ VkDeviceCreateInfo VulkanNativeApp::createDeviceCreationInfo(VkDeviceQueueCreate
 	createInfo.pQueueCreateInfos = &queueCreationInfo;
 	createInfo.queueCreateInfoCount = 1;
 
-//	VkPhysicalDeviceFeatures deviceFeatures = {};
-	createInfo.pEnabledFeatures = new VkPhysicalDeviceFeatures;
-
-	createInfo.enabledExtensionCount = 0;
-
-//	if (enableValidationLayers) {
-//		createInfo.enabledLayerCount = static_cast<uint32_t>(VALIDATION_LAYER_NAMES.size());
-//		createInfo.ppEnabledLayerNames = VALIDATION_LAYER_NAMES.data();
-//	} else {
-//		createInfo.enabledLayerCount = 0;
-//	}
+	if(debug) {
+		std::vector<const char *> availableLayers =
+				filterUnavailableValidationLayers(VALIDATION_LAYER_NAMES);
+		createInfo.enabledLayerCount = (uint32_t) availableLayers.size();
+		createInfo.ppEnabledLayerNames = availableLayers.data();
+	} else {
+		createInfo.enabledLayerCount = 0;
+	}
 
 	return createInfo;
 }
