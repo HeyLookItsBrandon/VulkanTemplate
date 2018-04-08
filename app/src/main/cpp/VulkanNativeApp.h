@@ -8,6 +8,16 @@
 #include <tuple>
 #include <memory>
 
+struct DeviceInfo {
+	VkPhysicalDevice device;
+	int queueFamilyIndex = -1;
+	int presentationFamilyIndex = -1;
+
+	bool isComplete() {
+		return queueFamilyIndex >= 0 && presentationFamilyIndex >= 0;
+	}
+};
+
 class VulkanNativeApp : public BaseNativeApp {
 	public:
 		VulkanNativeApp();
@@ -22,23 +32,24 @@ class VulkanNativeApp : public BaseNativeApp {
 
 	private:
 		const bool debug;
+
 		VkInstance vulkanInstance = {};
 		VkDevice device = {};
-
-		// Debugging
 		VkDebugReportCallbackEXT reportCallback = {};
+		VkQueue graphicsQueue;
+		VkQueue presentQueue;
+		VkSurfaceKHR surface;
 
 		VkApplicationInfo createApplicationInfo();
 		VkInstanceCreateInfo createInstanceCreationInfo(VkApplicationInfo& applicationInfo);
 		VkDebugReportCallbackCreateInfoEXT createReportCallbackInfo();
-		VkDeviceQueueCreateInfo createQueueCreationInfo(VkPhysicalDevice device);
+		VkDeviceQueueCreateInfo createQueueCreationInfo(DeviceInfo info);
 
-		const VkPhysicalDevice& pickPhysicalDevice(std::vector<VkPhysicalDevice> physicalDevices);
-		bool isDeviceSuitable(VkPhysicalDevice device);
-
-		uint32_t findQueueFamily(VkPhysicalDevice device);
+		const DeviceInfo pickPhysicalDevice(std::vector<VkPhysicalDevice> physicalDevices, const VkSurfaceKHR& surface);
 
 		VkDeviceCreateInfo createDeviceCreationInfo(VkDeviceQueueCreateInfo& queueCreationInfo);
+
+		VkSurfaceKHR createSurface(VkInstance instance);
 
 		static VKAPI_ATTR VkBool32 VKAPI_CALL delegateReportCallback( VkDebugReportFlagsEXT flags,
 				VkDebugReportObjectTypeEXT objectType, uint64_t object, size_t location,

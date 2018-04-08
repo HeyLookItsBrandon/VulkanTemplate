@@ -108,3 +108,10 @@ VkPhysicalDeviceFeatures getPhysicalDeviceFeatures(VkPhysicalDevice device) {
 
 	return deviceFeatures;
 }
+
+VkBool32 isPresentationSupported(const VkPhysicalDevice& physicalDevice, int queueFamilyIndex, const VkSurfaceKHR& surface) {
+	VkBool32 presentSupport = VK_FALSE;
+	vkGetPhysicalDeviceSurfaceSupportKHR(physicalDevice, queueFamilyIndex, surface, &presentSupport);
+
+	return presentSupport;
+}

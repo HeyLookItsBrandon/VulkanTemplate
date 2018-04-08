@@ -22,4 +22,6 @@ void assertSuccess(VkResult result, std::string message);
 VkPhysicalDeviceProperties getPhysicalDeviceProperties(VkPhysicalDevice device);
 VkPhysicalDeviceFeatures getPhysicalDeviceFeatures(VkPhysicalDevice device);
 
+VkBool32 isPresentationSupported(const VkPhysicalDevice& physicalDevice, int queueFamilyIndex, const VkSurfaceKHR& surface);
+
 #endif

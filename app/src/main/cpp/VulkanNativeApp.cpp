@@ -77,14 +77,18 @@ void VulkanNativeApp::initializeDisplay() {
 		throw std::runtime_error("No physical devices with Vulkan support were found.");
 	}
 
-	VkPhysicalDevice physicalDevice = pickPhysicalDevice(physicalDevices);
+	surface = createSurface(vulkanInstance);
+
+	DeviceInfo deviceInfo = pickPhysicalDevice(physicalDevices, surface);
 
 	// Create logical device
-	VkDeviceQueueCreateInfo queueCreationInfo = createQueueCreationInfo(physicalDevice);
+	VkDeviceQueueCreateInfo queueCreationInfo = createQueueCreationInfo(deviceInfo);
 	VkDeviceCreateInfo deviceCreationInfo = createDeviceCreationInfo(queueCreationInfo);
 
-	VkResult deviceCreationResult = vkCreateDevice(physicalDevice, &deviceCreationInfo, nullptr, &device);
+	VkResult deviceCreationResult = vkCreateDevice(deviceInfo.device, &deviceCreationInfo, nullptr, &device);
 	assertSuccess(deviceCreationResult, "Failed to create logical device.");
+
+	vkGetDeviceQueue(device, queueCreationInfo.queueFamilyIndex, 0, &graphicsQueue);
 }
 
 void VulkanNativeApp::deinitializeDisplay() {
@@ -98,6 +102,7 @@ void VulkanNativeApp::deinitializeDisplay() {
 		vkDestroyDebugReportCallbackEXT(vulkanInstance, reportCallback, nullptr);
 	}
 
+	vkDestroySurfaceKHR(vulkanInstance, surface, nullptr);
 	vkDestroyInstance(vulkanInstance, nullptr);
 }
 
@@ -161,39 +166,42 @@ VKAPI_ATTR VkBool32 VKAPI_CALL VulkanNativeApp::delegateReportCallback( VkDebugR
 	return (VkBool32) false;
 }
 
-const VkPhysicalDevice& VulkanNativeApp::pickPhysicalDevice(std::vector<VkPhysicalDevice> physicalDevices) {
-	for(const VkPhysicalDevice& device : physicalDevices) {
-		if(isDeviceSuitable(device)) {
-			return device;
+const DeviceInfo VulkanNativeApp::pickPhysicalDevice(std::vector<VkPhysicalDevice> physicalDevices, const VkSurfaceKHR& surface) {
+	DeviceInfo info = {};
+	for(const VkPhysicalDevice& physicalDevice : physicalDevices) {
+		VkPhysicalDeviceFeatures physicalDeviceFeatures = getPhysicalDeviceFeatures(physicalDevice);
+		if(!physicalDeviceFeatures.geometryShader) {
+			continue;
 		}
+
+		std::vector<VkQueueFamilyProperties> queueFamilyProperties = getQueueFamilyProperties(physicalDevice);
+		for(uint32_t i = 0; i < queueFamilyProperties.size(); i++) {
+			VkQueueFamilyProperties familyProperties = queueFamilyProperties[i];
+			if(familyProperties.queueCount > 0) {
+				if(familyProperties.queueFlags & VK_QUEUE_GRAPHICS_BIT) {
+					info.queueFamilyIndex = i;
+				}
+
+				if(isPresentationSupported(physicalDevice, i, surface)) {
+					info.presentationFamilyIndex = i;
+				}
+			}
+
+			if(info.isComplete()) {
+				info.device = physicalDevice;
+				return info;
+			}
+		}
+
+		throw std::runtime_error("No suitable physical devices found.");
 	}
 
-	throw std::runtime_error("No suitable physical devices found.");
 }
 
-bool VulkanNativeApp::isDeviceSuitable(VkPhysicalDevice device) {
-	VkPhysicalDeviceProperties properties = getPhysicalDeviceProperties(device);
-	return getPhysicalDeviceFeatures(device).geometryShader &&
-//			properties.deviceType == VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU && // This excludes the Tegra X1
-			findQueueFamily(device) != -1;
-}
-
-uint32_t VulkanNativeApp::findQueueFamily(VkPhysicalDevice device) {
-	std::vector<VkQueueFamilyProperties> queueFamilyProperties = getQueueFamilyProperties(device);
-	for(uint32_t i = 0; i < queueFamilyProperties.size(); i++) {
-		VkQueueFamilyProperties familyProperties = queueFamilyProperties[i];
-		if(familyProperties.queueCount > 1 && familyProperties.queueFlags & VK_QUEUE_GRAPHICS_BIT) {
-			return i;
-		}
-	}
-
-	return -1;
-}
-
-VkDeviceQueueCreateInfo VulkanNativeApp::createQueueCreationInfo(VkPhysicalDevice device) {
+VkDeviceQueueCreateInfo VulkanNativeApp::createQueueCreationInfo(DeviceInfo info) {
 	VkDeviceQueueCreateInfo queueCreateInfo = {};
 	queueCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
-	queueCreateInfo.queueFamilyIndex = findQueueFamily(device);
+	queueCreateInfo.queueFamilyIndex = info.queueFamilyIndex;
 	queueCreateInfo.queueCount = 1;
 
 	float priorities[] = { 1.0f };
@@ -219,4 +227,16 @@ VkDeviceCreateInfo VulkanNativeApp::createDeviceCreationInfo(VkDeviceQueueCreate
 	}
 
 	return createInfo;
+}
+
+VkSurfaceKHR VulkanNativeApp::createSurface(VkInstance instance) {
+	VkAndroidSurfaceCreateInfoKHR surfaceInfo = {};
+	surfaceInfo.sType = VK_STRUCTURE_TYPE_ANDROID_SURFACE_CREATE_INFO_KHR;
+	surfaceInfo.window = getApplication()->window;
+
+	VkSurfaceKHR surface;
+	VkResult result = vkCreateAndroidSurfaceKHR(instance, &surfaceInfo, nullptr, &surface);
+	assertSuccess(result, "Failed to create window");
+
+	return surface;
 }
