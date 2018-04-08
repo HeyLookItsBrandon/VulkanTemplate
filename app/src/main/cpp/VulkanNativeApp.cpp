@@ -2,6 +2,7 @@
 #include "AndroidLogging.h"
 #include "CapabilityUtil.h"
 #include <system_error>
+#include <set>
 
 const std::vector<const char *> INSTANCE_EXTENSION_NAMES = {
 		VK_KHR_SURFACE_EXTENSION_NAME,
@@ -82,13 +83,14 @@ void VulkanNativeApp::initializeDisplay() {
 	DeviceInfo deviceInfo = pickPhysicalDevice(physicalDevices, surface);
 
 	// Create logical device
-	VkDeviceQueueCreateInfo queueCreationInfo = createQueueCreationInfo(deviceInfo);
-	VkDeviceCreateInfo deviceCreationInfo = createDeviceCreationInfo(queueCreationInfo);
+	std::vector<VkDeviceQueueCreateInfo> queueCreationInfos = createQueueCreationInfos(deviceInfo);
+	VkDeviceCreateInfo deviceCreationInfo = createDeviceCreationInfo(queueCreationInfos);
 
 	VkResult deviceCreationResult = vkCreateDevice(deviceInfo.device, &deviceCreationInfo, nullptr, &device);
 	assertSuccess(deviceCreationResult, "Failed to create logical device.");
 
-	vkGetDeviceQueue(device, queueCreationInfo.queueFamilyIndex, 0, &graphicsQueue);
+	vkGetDeviceQueue(device, deviceInfo.queueFamilyIndex, 0, &graphicsQueue);
+	vkGetDeviceQueue(device, deviceInfo.presentationFamilyIndex, 0, &presentQueue);
 }
 
 void VulkanNativeApp::deinitializeDisplay() {
@@ -192,30 +194,37 @@ const DeviceInfo VulkanNativeApp::pickPhysicalDevice(std::vector<VkPhysicalDevic
 				return info;
 			}
 		}
-
-		throw std::runtime_error("No suitable physical devices found.");
 	}
 
+	throw std::runtime_error("No suitable physical devices found.");
 }
 
-VkDeviceQueueCreateInfo VulkanNativeApp::createQueueCreationInfo(DeviceInfo info) {
-	VkDeviceQueueCreateInfo queueCreateInfo = {};
-	queueCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
-	queueCreateInfo.queueFamilyIndex = info.queueFamilyIndex;
-	queueCreateInfo.queueCount = 1;
+std::vector<VkDeviceQueueCreateInfo> VulkanNativeApp::createQueueCreationInfos(DeviceInfo info) {
+	std::set<int> uniqueQueueFamilies = {info.queueFamilyIndex, info.presentationFamilyIndex};
+	std::vector<VkDeviceQueueCreateInfo> infos;
 
-	float priorities[] = { 1.0f };
-	queueCreateInfo.pQueuePriorities = &priorities[0];
+	for(int familyIndex : uniqueQueueFamilies) {
+		VkDeviceQueueCreateInfo queueCreateInfo = {};
+		queueCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
 
-	return queueCreateInfo;
+		queueCreateInfo.queueFamilyIndex = familyIndex;
+		queueCreateInfo.queueCount = 1;
+
+		float priorities[] = { 1.0f };
+		queueCreateInfo.pQueuePriorities = &priorities[0];
+
+		infos.push_back(queueCreateInfo);
+	}
+
+	return infos;
 }
 
-VkDeviceCreateInfo VulkanNativeApp::createDeviceCreationInfo(VkDeviceQueueCreateInfo& queueCreationInfo) {
+VkDeviceCreateInfo VulkanNativeApp::createDeviceCreationInfo(std::vector<VkDeviceQueueCreateInfo>& queueCreationInfos) {
 	VkDeviceCreateInfo createInfo = {};
 	createInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
 
-	createInfo.pQueueCreateInfos = &queueCreationInfo;
-	createInfo.queueCreateInfoCount = 1;
+	createInfo.pQueueCreateInfos = queueCreationInfos.data();
+	createInfo.queueCreateInfoCount = queueCreationInfos.size();
 
 	if(debug) {
 		std::vector<const char *> availableLayers =

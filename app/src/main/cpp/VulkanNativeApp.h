@@ -43,11 +43,11 @@ class VulkanNativeApp : public BaseNativeApp {
 		VkApplicationInfo createApplicationInfo();
 		VkInstanceCreateInfo createInstanceCreationInfo(VkApplicationInfo& applicationInfo);
 		VkDebugReportCallbackCreateInfoEXT createReportCallbackInfo();
-		VkDeviceQueueCreateInfo createQueueCreationInfo(DeviceInfo info);
+		std::vector<VkDeviceQueueCreateInfo> createQueueCreationInfos(DeviceInfo info);
 
 		const DeviceInfo pickPhysicalDevice(std::vector<VkPhysicalDevice> physicalDevices, const VkSurfaceKHR& surface);
 
-		VkDeviceCreateInfo createDeviceCreationInfo(VkDeviceQueueCreateInfo& queueCreationInfo);
+		VkDeviceCreateInfo createDeviceCreationInfo(std::vector<VkDeviceQueueCreateInfo>& queueCreationInfo);
 
 		VkSurfaceKHR createSurface(VkInstance instance);
 
