@@ -1,6 +1,9 @@
 #include <system_error>
 #include <cstring>
-#include "CapabilityUtil.h"
+#include <set>
+#include "CapabilityUtils.h"
+#include "StringUtils.h"
+#include "CollectionUtils.h"
 #include "AndroidLogging.h"
 
 std::vector<VkLayerProperties> getSupportedValidationLayers() {
@@ -32,7 +35,7 @@ std::vector<const char *> filterUnavailableValidationLayers(
 
 	for(const char* requestedLayerName : requestedLayerNames) {
 		for(const VkLayerProperties& supportedLayer : supportedLayers) {
-			if(strcmp(requestedLayerName, supportedLayer.layerName) == 0) {
+			if(areEqual(requestedLayerName, supportedLayer.layerName)) {
 				supportedLayerNames.push_back(requestedLayerName);
 
 				// Workaround for C++ not having labeled loop/continues, to continue the outer loop
@@ -107,6 +110,33 @@ VkPhysicalDeviceFeatures getPhysicalDeviceFeatures(VkPhysicalDevice device) {
 	vkGetPhysicalDeviceFeatures(device, &deviceFeatures);
 
 	return deviceFeatures;
+}
+
+std::vector<VkExtensionProperties> getPhysicalDeviceExtensionProperties(VkPhysicalDevice device) {
+	uint32_t extensionCount;
+	vkEnumerateDeviceExtensionProperties(device, nullptr, &extensionCount, nullptr);
+
+	std::vector<VkExtensionProperties> availableExtensions(extensionCount);
+	vkEnumerateDeviceExtensionProperties(device, nullptr, &extensionCount, availableExtensions.data());
+
+	return availableExtensions;
+}
+
+bool arePhysicalDeviceExtensionSupported(VkPhysicalDevice device,
+		std::vector<const char*> requiredExtensionNames) {
+	std::vector<VkExtensionProperties> supportedDeviceExtensions =
+			getPhysicalDeviceExtensionProperties(device);
+
+	// Note that this coerces the C strings to STL strings because our use of a map relies on string's equality implementation
+	std::set<std::string> remainingRequiredExtensionNames = asSet<const char*, std::string>(requiredExtensionNames);
+	for (const VkExtensionProperties& deviceExtension : supportedDeviceExtensions) {
+		remainingRequiredExtensionNames.erase(deviceExtension.extensionName);
+		if(remainingRequiredExtensionNames.empty()) {
+			return true;
+		}
+	}
+
+	return false;
 }
 
 VkBool32 isPresentationSupported(const VkPhysicalDevice& physicalDevice, int queueFamilyIndex, const VkSurfaceKHR& surface) {

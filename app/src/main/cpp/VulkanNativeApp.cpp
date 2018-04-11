@@ -1,21 +1,20 @@
 #include "VulkanNativeApp.h"
 #include "AndroidLogging.h"
-#include "CapabilityUtil.h"
+#include "CapabilityUtils.h"
 #include <system_error>
 #include <set>
 
-const std::vector<const char *> INSTANCE_EXTENSION_NAMES = {
+const std::vector<const char*> INSTANCE_EXTENSION_NAMES = {
 		VK_KHR_SURFACE_EXTENSION_NAME,
 		VK_KHR_ANDROID_SURFACE_EXTENSION_NAME,
 		VK_EXT_DEBUG_REPORT_EXTENSION_NAME};
 
-const std::vector<const char *> DEVICE_EXTENSION_NAMES = {
+const std::vector<const char*> REQUIRED_DEVICE_EXTENSION_NAMES = {
 		VK_KHR_SWAPCHAIN_EXTENSION_NAME };
 
 // Ideally, this would just use VK_LAYER_LUNARG_standard_validation meta layer but according to
 // presentation slides from LunarG, it isn't available on Android. Instead, these are the five
-// actual layers it's comprised of according to
-// https://vulkan.lunarg.com/doc/sdk/1.1.70.1/linux/validation_layers.html
+// actual layers it's comprised of according to LunarG's validation layer documentation.
 const std::vector<const char *> VALIDATION_LAYER_NAMES = {
 //		"VK_LAYER_GOOGLE_threading",
 		"VK_LAYER_LUNARG_parameter_validation",
@@ -171,8 +170,8 @@ VKAPI_ATTR VkBool32 VKAPI_CALL VulkanNativeApp::delegateReportCallback( VkDebugR
 const DeviceInfo VulkanNativeApp::pickPhysicalDevice(std::vector<VkPhysicalDevice> physicalDevices, const VkSurfaceKHR& surface) {
 	DeviceInfo info = {};
 	for(const VkPhysicalDevice& physicalDevice : physicalDevices) {
-		VkPhysicalDeviceFeatures physicalDeviceFeatures = getPhysicalDeviceFeatures(physicalDevice);
-		if(!physicalDeviceFeatures.geometryShader) {
+		if(!getPhysicalDeviceFeatures(physicalDevice).geometryShader ||
+				!arePhysicalDeviceExtensionSupported(physicalDevice, REQUIRED_DEVICE_EXTENSION_NAMES)) {
 			continue;
 		}
 
