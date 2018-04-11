@@ -12,9 +12,8 @@ const std::vector<const char*> INSTANCE_EXTENSION_NAMES = {
 const std::vector<const char*> REQUIRED_DEVICE_EXTENSION_NAMES = {
 		VK_KHR_SWAPCHAIN_EXTENSION_NAME };
 
-// Ideally, this would just use VK_LAYER_LUNARG_standard_validation meta layer but according to
-// presentation slides from LunarG, it isn't available on Android. Instead, these are the five
-// actual layers it's comprised of according to LunarG's validation layer documentation.
+// At the time of writing, these five layers make up the VK_LAYER_LUNARG_standard_validation meta
+// layer, which according to presentation slides from LunarG isn't available on Android.
 const std::vector<const char *> VALIDATION_LAYER_NAMES = {
 //		"VK_LAYER_GOOGLE_threading",
 		"VK_LAYER_LUNARG_parameter_validation",
@@ -45,66 +44,34 @@ void VulkanNativeApp::onWindowTerminated() {
 }
 
 void VulkanNativeApp::initializeDisplay() {
-	logSupportedInstanceExtensions();
-	logSupportedValidationLayers();
-
-	VkApplicationInfo appInfo = createApplicationInfo();
-	VkInstanceCreateInfo instanceCreationInfo = createInstanceCreationInfo(appInfo);
-
-	VkResult instanceCreationResult = vkCreateInstance(&instanceCreationInfo, nullptr, &vulkanInstance);
-	LOG_INFO("Vulkan instance creation result: %d", instanceCreationResult);
-	assertSuccess(instanceCreationResult, "Vulkan instance creation unsuccessful.");
-
 	if(debug) {
-		// Examples always seem to go straight to the lookup but InitVulkan() should have already looked
-		// it up from libvulkan.so. That never actually seems to be the case but as a best practice,
-		// don't bother looking the reference up if it's already available.
-		if(vkCreateDebugReportCallbackEXT == nullptr) {
-			vkCreateDebugReportCallbackEXT = reinterpret_cast<PFN_vkCreateDebugReportCallbackEXT>(
-					vkGetInstanceProcAddr(vulkanInstance, "vkCreateDebugReportCallbackEXT"));
-		}
-
-		VkDebugReportCallbackCreateInfoEXT reportCallbackCreationInfo = createReportCallbackInfo();
-		VkResult reportCallbackCreationResult = vkCreateDebugReportCallbackEXT(
-				vulkanInstance, &reportCallbackCreationInfo, nullptr, &reportCallback);
-		LOG_INFO("Vulkan report callback creation result: %d", reportCallbackCreationResult);
-		assertSuccess(reportCallbackCreationResult, "Failed to create report callback!");
+		logSupportedInstanceExtensions();
+		logSupportedValidationLayers();
 	}
 
-	std::vector<VkPhysicalDevice> physicalDevices = getPhysicalDevices(vulkanInstance);
-	LOG_DEBUG("Found %lu physical devices.", physicalDevices.size());
-	if (physicalDevices.size() == 0) {
-		throw std::runtime_error("No physical devices with Vulkan support were found.");
+	createInstance(instance);
+	if(debug) {
+		registerDebugReportCallback(instance, reportCallback);
 	}
 
-	surface = createSurface(vulkanInstance);
+	surface = createSurface(instance);
 
-	DeviceInfo deviceInfo = pickPhysicalDevice(physicalDevices, surface);
+	DeviceInfo deviceInfo = pickPhysicalDevice(surface);
 
-	// Create logical device
-	std::vector<VkDeviceQueueCreateInfo> queueCreationInfos = createQueueCreationInfos(deviceInfo);
-	VkDeviceCreateInfo deviceCreationInfo = createDeviceCreationInfo(queueCreationInfos);
-
-	VkResult deviceCreationResult = vkCreateDevice(deviceInfo.device, &deviceCreationInfo, nullptr, &device);
-	assertSuccess(deviceCreationResult, "Failed to create logical device.");
-
-	vkGetDeviceQueue(device, deviceInfo.queueFamilyIndex, 0, &graphicsQueue);
-	vkGetDeviceQueue(device, deviceInfo.presentationFamilyIndex, 0, &presentQueue);
+	createLogicalDevice(deviceInfo, logicalDevice);
+	vkGetDeviceQueue(logicalDevice, deviceInfo.queueFamilyIndex, 0, &graphicsQueue);
+	vkGetDeviceQueue(logicalDevice, deviceInfo.presentationFamilyIndex, 0, &presentQueue);
 }
 
 void VulkanNativeApp::deinitializeDisplay() {
-	vkDestroyDevice(device, nullptr);
+	vkDestroyDevice(logicalDevice, nullptr);
 
 	if(debug) {
-		if(vkDestroyDebugReportCallbackEXT == nullptr) {
-			vkDestroyDebugReportCallbackEXT = reinterpret_cast<PFN_vkDestroyDebugReportCallbackEXT>(
-					vkGetInstanceProcAddr(vulkanInstance, "vkDestroyDebugReportCallbackEXT"));
-		}
-		vkDestroyDebugReportCallbackEXT(vulkanInstance, reportCallback, nullptr);
+		destroyDebugReportCallback(instance, reportCallback, nullptr);
 	}
 
-	vkDestroySurfaceKHR(vulkanInstance, surface, nullptr);
-	vkDestroyInstance(vulkanInstance, nullptr);
+	vkDestroySurfaceKHR(instance, surface, nullptr);
+	vkDestroyInstance(instance, nullptr);
 }
 
 VkApplicationInfo VulkanNativeApp::createApplicationInfo() {
@@ -167,7 +134,13 @@ VKAPI_ATTR VkBool32 VKAPI_CALL VulkanNativeApp::delegateReportCallback( VkDebugR
 	return (VkBool32) false;
 }
 
-const DeviceInfo VulkanNativeApp::pickPhysicalDevice(std::vector<VkPhysicalDevice> physicalDevices, const VkSurfaceKHR& surface) {
+const DeviceInfo VulkanNativeApp::pickPhysicalDevice(const VkSurfaceKHR& surface) {
+	std::vector<VkPhysicalDevice> physicalDevices = getPhysicalDevices(instance);
+	LOG_DEBUG("Found %lu physical devices.", physicalDevices.size());
+	if (physicalDevices.size() == 0) {
+		throw std::runtime_error("No physical devices found.");
+	}
+
 	DeviceInfo info = {};
 	for(const VkPhysicalDevice& physicalDevice : physicalDevices) {
 		if(!getPhysicalDeviceFeatures(physicalDevice).geometryShader ||
@@ -189,7 +162,7 @@ const DeviceInfo VulkanNativeApp::pickPhysicalDevice(std::vector<VkPhysicalDevic
 			}
 
 			if(info.isComplete()) {
-				info.device = physicalDevice;
+				info.physicalDevice = physicalDevice;
 				return info;
 			}
 		}
@@ -199,10 +172,10 @@ const DeviceInfo VulkanNativeApp::pickPhysicalDevice(std::vector<VkPhysicalDevic
 }
 
 std::vector<VkDeviceQueueCreateInfo> VulkanNativeApp::createQueueCreationInfos(DeviceInfo info) {
-	std::set<int> uniqueQueueFamilies = {info.queueFamilyIndex, info.presentationFamilyIndex};
+	std::set<unsigned int> uniqueQueueFamilies = {info.queueFamilyIndex, info.presentationFamilyIndex};
 	std::vector<VkDeviceQueueCreateInfo> infos;
 
-	for(int familyIndex : uniqueQueueFamilies) {
+	for(unsigned int familyIndex : uniqueQueueFamilies) {
 		VkDeviceQueueCreateInfo queueCreateInfo = {};
 		queueCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
 
@@ -218,26 +191,26 @@ std::vector<VkDeviceQueueCreateInfo> VulkanNativeApp::createQueueCreationInfos(D
 	return infos;
 }
 
-VkDeviceCreateInfo VulkanNativeApp::createDeviceCreationInfo(std::vector<VkDeviceQueueCreateInfo>& queueCreationInfos) {
+void VulkanNativeApp::createLogicalDevice(const DeviceInfo &deviceInfo, VkDevice& logicalDevice) {
+	std::vector<VkDeviceQueueCreateInfo> queueCreationInfos = createQueueCreationInfos(deviceInfo);
+
 	VkDeviceCreateInfo createInfo = {};
 	createInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
-
 	createInfo.pQueueCreateInfos = queueCreationInfos.data();
 	createInfo.queueCreateInfoCount = queueCreationInfos.size();
-
 	if(debug) {
-		std::vector<const char *> availableLayers =
-				filterUnavailableValidationLayers(VALIDATION_LAYER_NAMES);
+		std::vector<const char *> availableLayers = filterUnavailableValidationLayers(VALIDATION_LAYER_NAMES);
 		createInfo.enabledLayerCount = (uint32_t) availableLayers.size();
 		createInfo.ppEnabledLayerNames = availableLayers.data();
 	} else {
 		createInfo.enabledLayerCount = 0;
 	}
 
-	return createInfo;
+	VkResult deviceCreationResult = vkCreateDevice(deviceInfo.physicalDevice, &createInfo, nullptr, &logicalDevice);
+	assertSuccess(deviceCreationResult, "Failed to create logical device.");
 }
 
-VkSurfaceKHR VulkanNativeApp::createSurface(VkInstance instance) {
+VkSurfaceKHR VulkanNativeApp::createSurface(VkInstance& instance) {
 	VkAndroidSurfaceCreateInfoKHR surfaceInfo = {};
 	surfaceInfo.sType = VK_STRUCTURE_TYPE_ANDROID_SURFACE_CREATE_INFO_KHR;
 	surfaceInfo.window = getApplication()->window;
@@ -247,4 +220,21 @@ VkSurfaceKHR VulkanNativeApp::createSurface(VkInstance instance) {
 	assertSuccess(result, "Failed to create window");
 
 	return surface;
+}
+
+void VulkanNativeApp::createInstance(VkInstance& instance) {
+	VkApplicationInfo appInfo = createApplicationInfo();
+	VkInstanceCreateInfo instanceCreationInfo = createInstanceCreationInfo(appInfo);
+	VkResult instanceCreationResult = vkCreateInstance(&instanceCreationInfo, nullptr, &instance);
+	LOG_DEBUG("Vulkan instance creation result: %d", instanceCreationResult);
+	assertSuccess(instanceCreationResult, "Vulkan instance creation unsuccessful.");
+}
+
+void VulkanNativeApp::registerDebugReportCallback(VkInstance &instance,
+		VkDebugReportCallbackEXT &reportCallback) {
+	VkDebugReportCallbackCreateInfoEXT reportCallbackCreationInfo = createReportCallbackInfo();
+	VkResult reportCallbackCreationResult = createDebugReportCallback(
+			instance, &reportCallbackCreationInfo, nullptr, &reportCallback);
+	LOG_DEBUG("Vulkan report callback creation result: %d", reportCallbackCreationResult);
+	assertSuccess(reportCallbackCreationResult, "Failed to debug create report callback.");
 }

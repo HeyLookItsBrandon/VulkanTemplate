@@ -9,12 +9,14 @@
 #include <memory>
 
 struct DeviceInfo {
-	VkPhysicalDevice device;
-	int queueFamilyIndex = -1;
-	int presentationFamilyIndex = -1;
+	const static unsigned int NONE = static_cast<const unsigned int>(-1);
+
+	VkPhysicalDevice physicalDevice;
+	unsigned int queueFamilyIndex = NONE;
+	unsigned int presentationFamilyIndex = NONE;
 
 	bool isComplete() {
-		return queueFamilyIndex >= 0 && presentationFamilyIndex >= 0;
+		return queueFamilyIndex != NONE && presentationFamilyIndex != NONE;
 	}
 };
 
@@ -32,24 +34,27 @@ class VulkanNativeApp : public BaseNativeApp {
 
 	private:
 		const bool debug;
-
-		VkInstance vulkanInstance = {};
-		VkDevice device = {};
+		VkInstance instance = {};
 		VkDebugReportCallbackEXT reportCallback = {};
+		VkSurfaceKHR surface;
+		VkDevice logicalDevice = {};
 		VkQueue graphicsQueue;
 		VkQueue presentQueue;
-		VkSurfaceKHR surface;
+
+		void createInstance(VkInstance& instance);
+		void registerDebugReportCallback(VkInstance &instance,
+				VkDebugReportCallbackEXT &reportCallback);
 
 		VkApplicationInfo createApplicationInfo();
 		VkInstanceCreateInfo createInstanceCreationInfo(VkApplicationInfo& applicationInfo);
 		VkDebugReportCallbackCreateInfoEXT createReportCallbackInfo();
 		std::vector<VkDeviceQueueCreateInfo> createQueueCreationInfos(DeviceInfo info);
 
-		const DeviceInfo pickPhysicalDevice(std::vector<VkPhysicalDevice> physicalDevices, const VkSurfaceKHR& surface);
+		const DeviceInfo pickPhysicalDevice(const VkSurfaceKHR& surface);
 
-		VkDeviceCreateInfo createDeviceCreationInfo(std::vector<VkDeviceQueueCreateInfo>& queueCreationInfo);
+		void createLogicalDevice(const DeviceInfo &deviceInfo, VkDevice& logicalDevice);
 
-		VkSurfaceKHR createSurface(VkInstance instance);
+		VkSurfaceKHR createSurface(VkInstance& instance);
 
 		static VKAPI_ATTR VkBool32 VKAPI_CALL delegateReportCallback( VkDebugReportFlagsEXT flags,
 				VkDebugReportObjectTypeEXT objectType, uint64_t object, size_t location,

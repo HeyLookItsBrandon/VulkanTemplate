@@ -94,7 +94,7 @@ void BaseNativeApp::handleAppCommand(struct android_app* app, int32_t command) {
 			onSaveInstanceState();
 			break;
 		default:
-			LOG_ERROR("Unknown application event encountered: %d", command);
+			LOG_INFO("Unknown application event encountered: %d", command);
 			break;
 	}
 }
@@ -105,7 +105,7 @@ android_app* BaseNativeApp::getApplication() {
 
 int32_t BaseNativeApp::handleInput(struct android_app* app, AInputEvent* event) {
 	if (AInputEvent_getType(event) == AINPUT_EVENT_TYPE_KEY) {
-		LOG_INFO("Input observed: %d", AKeyEvent_getKeyCode(event));
+		LOG_DEBUG("Input observed: %d", AKeyEvent_getKeyCode(event));
 
 		return 1;
 	}

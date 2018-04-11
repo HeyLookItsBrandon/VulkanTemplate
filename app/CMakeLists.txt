@@ -20,9 +20,7 @@ add_library( # Sets the name of the library.
              src/main/cpp/native-lib.cpp
              src/main/cpp/BaseNativeApp.cpp
              src/main/cpp/vulkan_wrapper/vulkan_wrapper.cpp
-             src/main/cpp/VulkanNativeApp.cpp
-             src/main/cpp/CapabilityUtils.cpp
-             src/main/cpp/StringUtils.cpp)
+             src/main/cpp/VulkanNativeApp.cpp)
 
 # build native_app_glue as a static lib
 add_library(native_app_glue STATIC
