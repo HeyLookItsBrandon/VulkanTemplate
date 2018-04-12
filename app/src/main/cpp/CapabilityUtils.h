@@ -8,7 +8,6 @@
 #include "AndroidLogging.h"
 #include "CollectionUtils.h"
 
-
 void assertSuccess(VkResult result, std::string message) {
 	if(result != VK_SUCCESS) {
 		throw std::runtime_error(message.c_str());
@@ -43,7 +42,9 @@ std::vector<VkLayerProperties> getSupportedValidationLayers() {
 	vkEnumerateInstanceLayerProperties(&layerCount, nullptr);
 
 	std::vector<VkLayerProperties> availableLayers(layerCount);
-	vkEnumerateInstanceLayerProperties(&layerCount, availableLayers.data());
+	if(layerCount > 0) {
+		vkEnumerateInstanceLayerProperties(&layerCount, availableLayers.data());
+	}
 
 	return availableLayers;
 }
@@ -84,11 +85,13 @@ std::vector<const char *> filterUnavailableValidationLayers(
 }
 
 std::vector<VkExtensionProperties> getSupportedInstanceExtensions() {
-	uint32_t extensionCount = 0;
-	vkEnumerateInstanceExtensionProperties(nullptr, &extensionCount, nullptr);
+	uint32_t count = 0;
+	vkEnumerateInstanceExtensionProperties(nullptr, &count, nullptr);
 
-	std::vector<VkExtensionProperties> extensions(extensionCount);
-	vkEnumerateInstanceExtensionProperties(nullptr, &extensionCount, extensions.data());
+	std::vector<VkExtensionProperties> extensions(count);
+	if(count > 0) {
+		vkEnumerateInstanceExtensionProperties(nullptr, &count, extensions.data());
+	}
 
 	return extensions;
 }
@@ -105,21 +108,25 @@ void logSupportedInstanceExtensions() {
 }
 
 std::vector<VkPhysicalDevice> getPhysicalDevices(VkInstance instance) {
-	uint32_t deviceCount = 0;
-	vkEnumeratePhysicalDevices(instance, &deviceCount, nullptr);
+	uint32_t count = 0;
+	vkEnumeratePhysicalDevices(instance, &count, nullptr);
 
-	std::vector<VkPhysicalDevice> devices(deviceCount);
-	vkEnumeratePhysicalDevices(instance, &deviceCount, devices.data());
+	std::vector<VkPhysicalDevice> devices(count);
+	if(count > 0) {
+		vkEnumeratePhysicalDevices(instance, &count, devices.data());
+	}
 
 	return devices;
 }
 
 std::vector<VkQueueFamilyProperties> getQueueFamilyProperties(VkPhysicalDevice device) {
-	uint32_t queueFamilyCount = 0;
-	vkGetPhysicalDeviceQueueFamilyProperties(device, &queueFamilyCount, nullptr);
+	uint32_t count = 0;
+	vkGetPhysicalDeviceQueueFamilyProperties(device, &count, nullptr);
 
-	std::vector<VkQueueFamilyProperties> queueFamilies(queueFamilyCount);
-	vkGetPhysicalDeviceQueueFamilyProperties(device, &queueFamilyCount, queueFamilies.data());
+	std::vector<VkQueueFamilyProperties> queueFamilies(count);
+	if(count > 0) {
+		vkGetPhysicalDeviceQueueFamilyProperties(device, &count, queueFamilies.data());
+	}
 
 	return queueFamilies;
 }
@@ -139,13 +146,41 @@ VkPhysicalDeviceFeatures getPhysicalDeviceFeatures(VkPhysicalDevice device) {
 }
 
 std::vector<VkExtensionProperties> getPhysicalDeviceExtensionProperties(VkPhysicalDevice device) {
-	uint32_t extensionCount;
-	vkEnumerateDeviceExtensionProperties(device, nullptr, &extensionCount, nullptr);
+	uint32_t count;
+	vkEnumerateDeviceExtensionProperties(device, nullptr, &count, nullptr);
 
-	std::vector<VkExtensionProperties> availableExtensions(extensionCount);
-	vkEnumerateDeviceExtensionProperties(device, nullptr, &extensionCount, availableExtensions.data());
+	std::vector<VkExtensionProperties> availableExtensions(count);
+	if(count > 0) {
+		vkEnumerateDeviceExtensionProperties(device, nullptr, &count, availableExtensions.data());
+	}
 
 	return availableExtensions;
+}
+
+std::vector<VkSurfaceFormatKHR> getPhysicalDeviceSurfaceFormats(
+		const VkPhysicalDevice& device, const VkSurfaceKHR& surface) {
+	uint32_t count;
+	vkGetPhysicalDeviceSurfaceFormatsKHR(device, surface, &count, nullptr);
+
+	std::vector<VkSurfaceFormatKHR> formats(count);
+	if(count > 0) {
+		vkGetPhysicalDeviceSurfaceFormatsKHR(device, surface, &count, formats.data());
+	}
+
+	return formats;
+}
+
+std::vector<VkPresentModeKHR> getPhysicalDeviceSurfacePresentModes(
+		const VkPhysicalDevice& device, const VkSurfaceKHR& surface) {
+	uint32_t count;
+	vkGetPhysicalDeviceSurfacePresentModesKHR(device, surface, &count, nullptr);
+
+	std::vector<VkPresentModeKHR> modes(count);
+	if (count > 0) {
+		vkGetPhysicalDeviceSurfacePresentModesKHR(device, surface, &count, modes.data());
+	}
+
+	return modes;
 }
 
 bool arePhysicalDeviceExtensionSupported(VkPhysicalDevice device,
@@ -165,7 +200,7 @@ bool arePhysicalDeviceExtensionSupported(VkPhysicalDevice device,
 	return false;
 }
 
-VkBool32 isPresentationSupported(const VkPhysicalDevice& physicalDevice, int queueFamilyIndex, const VkSurfaceKHR& surface) {
+VkBool32 isPresentationSupported(const VkPhysicalDevice& physicalDevice, unsigned int queueFamilyIndex, const VkSurfaceKHR& surface) {
 	VkBool32 presentSupport = VK_FALSE;
 	vkGetPhysicalDeviceSurfaceSupportKHR(physicalDevice, queueFamilyIndex, surface, &presentSupport);
 

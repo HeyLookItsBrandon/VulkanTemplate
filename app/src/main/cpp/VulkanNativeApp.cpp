@@ -144,7 +144,9 @@ const DeviceInfo VulkanNativeApp::pickPhysicalDevice(const VkSurfaceKHR& surface
 	DeviceInfo info = {};
 	for(const VkPhysicalDevice& physicalDevice : physicalDevices) {
 		if(!getPhysicalDeviceFeatures(physicalDevice).geometryShader ||
-				!arePhysicalDeviceExtensionSupported(physicalDevice, REQUIRED_DEVICE_EXTENSION_NAMES)) {
+				!arePhysicalDeviceExtensionSupported(physicalDevice, REQUIRED_DEVICE_EXTENSION_NAMES) ||
+				getPhysicalDeviceSurfaceFormats(physicalDevice, surface).empty() ||
+				getPhysicalDeviceSurfacePresentModes(physicalDevice, surface).empty()) {
 			continue;
 		}
 
