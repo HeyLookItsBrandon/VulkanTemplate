@@ -1,8 +1,10 @@
 #include "VulkanNativeApp.h"
 #include "AndroidLogging.h"
 #include "CapabilityUtils.h"
+#include "MathUtils.h"
 #include <system_error>
 #include <set>
+#include <limits>
 
 const std::vector<const char*> INSTANCE_EXTENSION_NAMES = {
 		VK_KHR_SURFACE_EXTENSION_NAME,
@@ -58,9 +60,24 @@ void VulkanNativeApp::initializeDisplay() {
 
 	DeviceInfo deviceInfo = pickPhysicalDevice(surface);
 
+	SwapChainSupportDetails swapChainDetails = {};
+	swapChainDetails.format = pickFormat(deviceInfo.surfaceFormats);
+	swapChainDetails.presentMode = pickPresentMode(deviceInfo.presentModes);
+	VkSurfaceCapabilitiesKHR capabilities = getPhysicalDeviceSurfaceCapabilities(
+			deviceInfo.physicalDevice, deviceInfo.surface);
+	swapChainDetails.swapExtent = pickExtent(capabilities);
+	swapChainDetails.imageCount = pickImageCount(capabilities);
+
 	createLogicalDevice(deviceInfo, logicalDevice);
 	vkGetDeviceQueue(logicalDevice, deviceInfo.queueFamilyIndex, 0, &graphicsQueue);
 	vkGetDeviceQueue(logicalDevice, deviceInfo.presentationFamilyIndex, 0, &presentQueue);
+
+	createSwapchain(
+			swapchain,
+			logicalDevice,
+			swapChainDetails,
+			deviceInfo,
+			capabilities);
 }
 
 void VulkanNativeApp::deinitializeDisplay() {
@@ -141,12 +158,20 @@ const DeviceInfo VulkanNativeApp::pickPhysicalDevice(const VkSurfaceKHR& surface
 		throw std::runtime_error("No physical devices found.");
 	}
 
-	DeviceInfo info = {};
 	for(const VkPhysicalDevice& physicalDevice : physicalDevices) {
+		if(debug) {
+			logPhysicalDeviceExtensionProperties(physicalDevice);
+		}
+
+		DeviceInfo info = {};
+		info.surface = surface;
+		info.surfaceFormats = getPhysicalDeviceSurfaceFormats(physicalDevice, surface);
+		info.presentModes = getPhysicalDeviceSurfacePresentModes(physicalDevice, surface);
+
 		if(!getPhysicalDeviceFeatures(physicalDevice).geometryShader ||
 				!arePhysicalDeviceExtensionSupported(physicalDevice, REQUIRED_DEVICE_EXTENSION_NAMES) ||
-				getPhysicalDeviceSurfaceFormats(physicalDevice, surface).empty() ||
-				getPhysicalDeviceSurfacePresentModes(physicalDevice, surface).empty()) {
+				info.surfaceFormats.empty() ||
+				info.presentModes.empty()) {
 			continue;
 		}
 
@@ -198,8 +223,13 @@ void VulkanNativeApp::createLogicalDevice(const DeviceInfo &deviceInfo, VkDevice
 
 	VkDeviceCreateInfo createInfo = {};
 	createInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
+
+	createInfo.queueCreateInfoCount = static_cast<uint32_t>(queueCreationInfos.size());
 	createInfo.pQueueCreateInfos = queueCreationInfos.data();
-	createInfo.queueCreateInfoCount = queueCreationInfos.size();
+
+	createInfo.enabledExtensionCount = static_cast<uint32_t>(REQUIRED_DEVICE_EXTENSION_NAMES.size());
+	createInfo.ppEnabledExtensionNames = REQUIRED_DEVICE_EXTENSION_NAMES.data();
+
 	if(debug) {
 		std::vector<const char *> availableLayers = filterUnavailableValidationLayers(VALIDATION_LAYER_NAMES);
 		createInfo.enabledLayerCount = (uint32_t) availableLayers.size();
@@ -239,4 +269,93 @@ void VulkanNativeApp::registerDebugReportCallback(VkInstance &instance,
 			instance, &reportCallbackCreationInfo, nullptr, &reportCallback);
 	LOG_DEBUG("Vulkan report callback creation result: %d", reportCallbackCreationResult);
 	assertSuccess(reportCallbackCreationResult, "Failed to debug create report callback.");
+}
+
+VkSurfaceFormatKHR VulkanNativeApp::pickFormat(const std::vector<VkSurfaceFormatKHR>& formats) {
+	if(formats.size() == 1 && formats[0].format == VK_FORMAT_UNDEFINED) {
+		return {VK_FORMAT_B8G8R8A8_UNORM, VK_COLOR_SPACE_SRGB_NONLINEAR_KHR};
+	}
+
+	for(const VkSurfaceFormatKHR & format : formats) {
+		if (format.format == VK_FORMAT_B8G8R8A8_UNORM &&
+				format.colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR) {
+			return format;
+		}
+	}
+
+	return formats[0]; // Okay, I give up. Let's give this a try.
+}
+
+VkPresentModeKHR VulkanNativeApp::pickPresentMode(const std::vector<VkPresentModeKHR>& presentModes) {
+	VkPresentModeKHR bestMode = VK_PRESENT_MODE_FIFO_KHR;
+
+	for (const VkPresentModeKHR& presentMode : presentModes) {
+		if (presentMode == VK_PRESENT_MODE_MAILBOX_KHR) {
+			return presentMode;
+		} else if (presentMode == VK_PRESENT_MODE_IMMEDIATE_KHR) {
+			bestMode = presentMode;
+		}
+	}
+
+	return bestMode;
+}
+
+VkExtent2D VulkanNativeApp::pickExtent(const VkSurfaceCapabilitiesKHR& capabilities) {
+	if (capabilities.currentExtent.width == std::numeric_limits<uint32_t>::max()) {
+		return {
+				clamp(extentWidth, capabilities.minImageExtent.width, capabilities.maxImageExtent.width),
+				clamp(extentHeight, capabilities.minImageExtent.height, capabilities.maxImageExtent.height)};
+	} else {
+		return capabilities.currentExtent;
+	}
+}
+
+int VulkanNativeApp::pickImageCount(VkSurfaceCapabilitiesKHR capabilities) {
+	uint32_t desiredCount = capabilities.minImageCount + 1;
+	return capabilities.maxImageCount == 0 ? // 0 means no limit
+			desiredCount :
+			std::min(desiredCount, capabilities.maxImageCount);
+}
+
+void VulkanNativeApp::createSwapchain(
+		VkSwapchainKHR& swapchain,
+		const VkDevice& device,
+		const SwapChainSupportDetails &swapChainSupportDetails,
+		const DeviceInfo &deviceInfo,
+		const VkSurfaceCapabilitiesKHR &capabilities) {
+	VkSwapchainCreateInfoKHR createInfo = {};
+	createInfo.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
+
+	createInfo.surface = surface;
+
+	createInfo.minImageCount = swapChainSupportDetails.imageCount;
+	createInfo.imageFormat = swapChainSupportDetails.format.format;
+	createInfo.imageColorSpace = swapChainSupportDetails.format.colorSpace;
+	createInfo.imageExtent = swapChainSupportDetails.swapExtent;
+	createInfo.imageArrayLayers = 1;
+	createInfo.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
+
+	if (deviceInfo.queueFamilyIndex == deviceInfo.presentationFamilyIndex) {
+		createInfo.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
+	} else {
+		createInfo.imageSharingMode = VK_SHARING_MODE_CONCURRENT;
+		createInfo.queueFamilyIndexCount = 2;
+
+		uint32_t indices[] = {
+				(uint32_t) deviceInfo.queueFamilyIndex,
+				(uint32_t) deviceInfo.presentationFamilyIndex};
+		createInfo.pQueueFamilyIndices = indices;
+	}
+
+	createInfo.preTransform = capabilities.currentTransform;
+	createInfo.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
+	createInfo.presentMode = swapChainSupportDetails.presentMode;
+	createInfo.clipped = VK_TRUE;
+
+	createInfo.oldSwapchain = VK_NULL_HANDLE;
+
+	VkResult result = vkCreateSwapchainKHR(device, &createInfo, nullptr, &swapchain);
+	assertSuccess(result, "Failed to create swap chain.");
+
+	// More here
 }

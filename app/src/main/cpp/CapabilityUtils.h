@@ -157,6 +157,16 @@ std::vector<VkExtensionProperties> getPhysicalDeviceExtensionProperties(VkPhysic
 	return availableExtensions;
 }
 
+void logPhysicalDeviceExtensionProperties(const VkPhysicalDevice& device) {
+	std::vector<VkExtensionProperties> properties = getPhysicalDeviceExtensionProperties(device);
+	LOG_DEBUG("Found %lu supported physical device extensions.", properties.size());
+	for(const VkExtensionProperties& property : properties) {
+		LOG_DEBUG("%s (%i)",
+				property.extensionName,
+				property.specVersion);
+	}
+}
+
 std::vector<VkSurfaceFormatKHR> getPhysicalDeviceSurfaceFormats(
 		const VkPhysicalDevice& device, const VkSurfaceKHR& surface) {
 	uint32_t count;
@@ -181,6 +191,13 @@ std::vector<VkPresentModeKHR> getPhysicalDeviceSurfacePresentModes(
 	}
 
 	return modes;
+}
+
+VkSurfaceCapabilitiesKHR getPhysicalDeviceSurfaceCapabilities(VkPhysicalDevice physicalDevice, VkSurfaceKHR surface) {
+	VkSurfaceCapabilitiesKHR capabilities = {};
+	vkGetPhysicalDeviceSurfaceCapabilitiesKHR(physicalDevice, surface, &capabilities);
+
+	return capabilities;
 }
 
 bool arePhysicalDeviceExtensionSupported(VkPhysicalDevice device,
