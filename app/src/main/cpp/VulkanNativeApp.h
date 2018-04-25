@@ -53,6 +53,7 @@ class VulkanNativeApp : public BaseNativeApp {
 		VkQueue graphicsQueue;
 		VkQueue presentQueue;
 		VkSwapchainKHR swapchain;
+		std::vector<VkImage> swapchainImages;
 
 		void createInstance(VkInstance& instance);
 		void registerDebugReportCallback(VkInstance &instance,

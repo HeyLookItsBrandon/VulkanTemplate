@@ -224,4 +224,11 @@ VkBool32 isPresentationSupported(const VkPhysicalDevice& physicalDevice, unsigne
 	return presentSupport;
 }
 
+void getSwapchainImages(VkDevice  device, VkSwapchainKHR swapchain, std::vector<VkImage>& images) {
+	uint32_t count = 0;
+	vkGetSwapchainImagesKHR(device, swapchain, &count, nullptr);
+	images.resize(count);
+	vkGetSwapchainImagesKHR(device, swapchain, &count, images.data());
+}
+
 #endif

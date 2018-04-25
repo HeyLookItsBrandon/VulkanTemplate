@@ -81,6 +81,8 @@ void VulkanNativeApp::initializeDisplay() {
 }
 
 void VulkanNativeApp::deinitializeDisplay() {
+	vkDestroySwapchainKHR(logicalDevice, swapchain, nullptr);
+
 	vkDestroyDevice(logicalDevice, nullptr);
 
 	if(debug) {
@@ -357,5 +359,7 @@ void VulkanNativeApp::createSwapchain(
 	VkResult result = vkCreateSwapchainKHR(device, &createInfo, nullptr, &swapchain);
 	assertSuccess(result, "Failed to create swap chain.");
 
-	// More here
+	getSwapchainImages(device, swapchain, swapchainImages);
+
+	// TODO Save image format and extent for later
 }
