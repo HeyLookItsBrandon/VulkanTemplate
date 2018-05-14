@@ -17,12 +17,11 @@ const std::vector<const char*> REQUIRED_DEVICE_EXTENSION_NAMES = {
 // At the time of writing, these five layers make up the VK_LAYER_LUNARG_standard_validation meta
 // layer, which according to presentation slides from LunarG isn't available on Android.
 const std::vector<const char *> VALIDATION_LAYER_NAMES = {
-//		"VK_LAYER_GOOGLE_threading",
+		"VK_LAYER_GOOGLE_threading",
 		"VK_LAYER_LUNARG_parameter_validation",
-//		"VK_LAYER_LUNARG_object_tracker",
+		"VK_LAYER_LUNARG_object_tracker",
 		"VK_LAYER_LUNARG_core_validation",
-//		"VK_LAYER_GOOGLE_unique_objects"
-};
+		"VK_LAYER_GOOGLE_unique_objects"};
 
 bool isDebugBuild() {
 	bool debug = false;
@@ -116,10 +115,8 @@ VkInstanceCreateInfo VulkanNativeApp::createInstanceCreationInfo(VkApplicationIn
 	createInfo.ppEnabledExtensionNames = INSTANCE_EXTENSION_NAMES.data();
 
 	if(debug) {
-		std::vector<const char *> availableLayers =
-				filterUnavailableValidationLayers(VALIDATION_LAYER_NAMES);
-		createInfo.enabledLayerCount = (uint32_t) availableLayers.size();
-		createInfo.ppEnabledLayerNames = availableLayers.data();
+		createInfo.enabledLayerCount = (uint32_t) VALIDATION_LAYER_NAMES.size();
+		createInfo.ppEnabledLayerNames = VALIDATION_LAYER_NAMES.data();
 	} else {
 		createInfo.enabledLayerCount = 0;
 	}
@@ -233,9 +230,8 @@ void VulkanNativeApp::createLogicalDevice(const DeviceInfo &deviceInfo, VkDevice
 	createInfo.ppEnabledExtensionNames = REQUIRED_DEVICE_EXTENSION_NAMES.data();
 
 	if(debug) {
-		std::vector<const char *> availableLayers = filterUnavailableValidationLayers(VALIDATION_LAYER_NAMES);
-		createInfo.enabledLayerCount = (uint32_t) availableLayers.size();
-		createInfo.ppEnabledLayerNames = availableLayers.data();
+		createInfo.enabledLayerCount = (uint32_t) VALIDATION_LAYER_NAMES.size();
+		createInfo.ppEnabledLayerNames = VALIDATION_LAYER_NAMES.data();
 	} else {
 		createInfo.enabledLayerCount = 0;
 	}
