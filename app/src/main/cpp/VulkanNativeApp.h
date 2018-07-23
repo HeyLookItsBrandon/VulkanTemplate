@@ -32,13 +32,15 @@ struct SwapChainSupportDetails {
 
 class VulkanNativeApp : public BaseNativeApp {
 	public:
-		VulkanNativeApp();
+		VulkanNativeApp(android_app* app);
 	protected:
 		void initializeDisplay();
 		void deinitializeDisplay();
 
 		void onWindowInitialized() override;
 		void onWindowTerminated() override;
+		void handleMainLoop(long bootTime) override;
+		long getMainLoopEventWaitTime() override;
 
 		virtual void onReportingEvent(const char *message);
 
@@ -54,6 +56,13 @@ class VulkanNativeApp : public BaseNativeApp {
 		VkQueue presentQueue;
 		VkSwapchainKHR swapchain;
 		std::vector<VkImage> swapchainImages;
+		std::vector<VkImageView> swapchainImageViews;
+		VkRenderPass renderPass;
+		VkPipelineLayout pipelineLayout;
+		VkPipeline graphicsPipeline;
+		std::vector<VkFramebuffer> swapchainFramebuffers;
+		VkCommandPool commandPool;
+		std::vector<VkCommandBuffer> commandBuffers;
 
 		void createInstance(VkInstance& instance);
 		void registerDebugReportCallback(VkInstance &instance,
@@ -88,6 +97,14 @@ class VulkanNativeApp : public BaseNativeApp {
 				const SwapChainSupportDetails &swapChainSupportDetails,
 				const DeviceInfo &deviceInfo,
 				const VkSurfaceCapabilitiesKHR &capabilities);
+
+		void createImageViews(const SwapChainSupportDetails& swapChainSupportDetails);
+
+		void createRenderPass(SwapChainSupportDetails swapChainDetails);
+		void createGraphicsPipeline(SwapChainSupportDetails swapChainDetails);
+		void createFramebuffers(const SwapChainSupportDetails &swapChainSupportDetails);
+		void createCommandPool(const DeviceInfo &deviceInfo);
+		void createCommandBuffers(const SwapChainSupportDetails &swapChainSupportDetails);
 };
 
 #endif

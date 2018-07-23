@@ -3,6 +3,6 @@
 #include "VulkanNativeApp.h"
 
 void android_main(android_app *app) {
-	VulkanNativeApp vulkanApp;
-	vulkanApp.run(app);
+	VulkanNativeApp vulkanApp(app);
+	vulkanApp.run();
 }

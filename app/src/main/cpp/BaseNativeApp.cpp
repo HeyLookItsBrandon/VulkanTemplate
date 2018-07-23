@@ -2,15 +2,18 @@
 #include "AndroidLogging.h"
 
 #include "BaseNativeApp.h"
+#include <ctime>
 
-void BaseNativeApp::run(android_app* app) {
+BaseNativeApp::BaseNativeApp(android_app* app) {
 	application = app;
+}
 
-	app -> userData = this;
-	app -> onAppCmd = delegateAppCommand;
-	app -> onInputEvent = delegateInputEvent;
+void BaseNativeApp::run() {
+	application -> userData = this;
+	application -> onAppCmd = delegateAppCommand;
+	application -> onInputEvent = delegateInputEvent;
 
-	processEvents(app);
+	processEvents(application);
 }
 
 void BaseNativeApp::delegateAppCommand(struct android_app* app, int32_t command) {
@@ -24,23 +27,38 @@ int32_t BaseNativeApp::delegateInputEvent(struct android_app* app, AInputEvent* 
 }
 
 void BaseNativeApp::processEvents(android_app *app) {
+	timespec ts = {};
+
 	while(true) {
 		struct android_poll_source *source;
+
 		// An interval of -1 will cause ALooper_pollAll to block. Considering using 0 while doing
 		// work that should continue regardless of an event happening
-		while (ALooper_pollAll(-1, nullptr, nullptr, (void **) &source) >= 0) {
-			if (source != NULL) {
+		while (ALooper_pollAll(getMainLoopEventWaitTime(), nullptr, nullptr, (void **) &source) >= 0) {
+			if (source != nullptr) {
 				source -> process(app, source);
 			}
 
 			if (app->destroyRequested != 0) {
 				return;
 			}
+
+			if (!app->window) {
+				continue;
+			}
 		}
 
-		// Make updated and re-render
+		// Because this uses ns precision, it may be a little expensive to use
+		clock_gettime(CLOCK_BOOTTIME, &ts);
+		handleMainLoop(ts.tv_sec * 1000 + ts.tv_nsec / 1000000);
 	}
 }
+
+long BaseNativeApp::getMainLoopEventWaitTime() {
+	return -1;
+}
+
+void BaseNativeApp::handleMainLoop(long bootTime) {}
 
 void BaseNativeApp::handleAppCommand(struct android_app* app, int32_t command) {
 	switch(command) {
@@ -99,8 +117,12 @@ void BaseNativeApp::handleAppCommand(struct android_app* app, int32_t command) {
 	}
 }
 
-android_app* BaseNativeApp::getApplication() {
+const android_app* BaseNativeApp::getApplication() {
 	return application;
+}
+
+AAssetManager* BaseNativeApp::getAssetManager() {
+	return application -> activity -> assetManager;
 }
 
 int32_t BaseNativeApp::handleInput(struct android_app* app, AInputEvent* event) {

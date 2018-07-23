@@ -231,4 +231,16 @@ void getSwapchainImages(VkDevice  device, VkSwapchainKHR swapchain, std::vector<
 	vkGetSwapchainImagesKHR(device, swapchain, &count, images.data());
 }
 
+VkShaderModule createShaderModule(const VkDevice& device, const std::vector<char>& shaderBytecode) {
+	VkShaderModuleCreateInfo createInfo = {};
+	createInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
+	createInfo.codeSize = shaderBytecode.size();
+	createInfo.pCode = reinterpret_cast<const uint32_t*>(shaderBytecode.data());
+
+	VkShaderModule shaderModule;
+	assertSuccess(vkCreateShaderModule(device, &createInfo, nullptr, &shaderModule), "Failed to create shader module.");
+
+	return shaderModule;
+}
+
 #endif

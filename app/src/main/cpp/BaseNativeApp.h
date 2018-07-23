@@ -5,12 +5,15 @@
 
 class BaseNativeApp {
 	public:
-		void run(android_app* app);
+		BaseNativeApp(android_app* app);
+
+		void run();
 		void handleAppCommand(struct android_app* app, int32_t command);
 		int32_t handleInput(struct android_app* app, AInputEvent* event);
 
 	protected:
-		android_app* getApplication();
+		const android_app* getApplication();
+		AAssetManager* getAssetManager();
 
 		virtual void onWindowInitialized();
 		virtual void onWindowTerminated();
@@ -30,6 +33,9 @@ class BaseNativeApp {
 		virtual void onConfigChanged();
 		virtual void onLowMemory();
 		virtual void onSaveInstanceState();
+
+		virtual long getMainLoopEventWaitTime();
+		virtual void handleMainLoop(long bootTime);
 
 	private:
 		android_app* application;
