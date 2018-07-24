@@ -85,9 +85,17 @@ void VulkanNativeApp::initializeDisplay() {
 	createFramebuffers(swapChainDetails);
 	createCommandPool(deviceInfo);
 	createCommandBuffers(swapChainDetails);
+	createSemaphores();
+
+	initialized = true;
 }
 
 void VulkanNativeApp::deinitializeDisplay() {
+	initialized = false;
+
+	vkDestroySemaphore(logicalDevice, renderCompletionSemaphore, nullptr);
+	vkDestroySemaphore(logicalDevice, imageAvailabilitySemaphore, nullptr);
+
 	vkDestroyCommandPool(logicalDevice, commandPool, nullptr);
 
 	for (auto framebuffer : swapchainFramebuffers) {
@@ -383,7 +391,9 @@ void VulkanNativeApp::createSwapchain(
 }
 
 void VulkanNativeApp::handleMainLoop(long bootTime) {
-	LOG_DEBUG("Time: %ld", bootTime);
+	if(initialized) {
+		drawFrame();
+	}
 }
 
 long VulkanNativeApp::getMainLoopEventWaitTime() {
@@ -597,8 +607,18 @@ void VulkanNativeApp::createCommandBuffers(const SwapChainSupportDetails &swapCh
 	}
 }
 
+void VulkanNativeApp::createSemaphores() {
+	VkSemaphoreCreateInfo semaphoreInfo = {};
+	semaphoreInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
+
+	assertSuccess(vkCreateSemaphore(logicalDevice, &semaphoreInfo, nullptr, &imageAvailabilitySemaphore),
+			"Failed to create semaphore.");
+	assertSuccess(vkCreateSemaphore(logicalDevice, &semaphoreInfo, nullptr, &renderCompletionSemaphore),
+			"Failed to create semaphore.");
+}
+
 void VulkanNativeApp::createRenderPass(SwapChainSupportDetails swapChainDetails) {
-	VkAttachmentDescription colorAttachment = {};
+	colorAttachment = {};
 	colorAttachment.format = swapChainDetails.format.format;
 	colorAttachment.samples = VK_SAMPLE_COUNT_1_BIT;
 	colorAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
@@ -618,13 +638,62 @@ void VulkanNativeApp::createRenderPass(SwapChainSupportDetails swapChainDetails)
 	// An array. Location 0 in fragment shader is a reference to this!
 	subpass.pColorAttachments = &colorAttachmentReference;
 
+	VkSubpassDependency dependency = {};
+	dependency.srcSubpass = VK_SUBPASS_EXTERNAL;
+	dependency.dstSubpass = 0;
+	dependency.srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+	dependency.srcAccessMask = 0;
+	dependency.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+	dependency.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+
 	VkRenderPassCreateInfo renderPassInfo = {};
 	renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
 	renderPassInfo.attachmentCount = 1;
 	renderPassInfo.pAttachments = &colorAttachment;
 	renderPassInfo.subpassCount = 1;
 	renderPassInfo.pSubpasses = &subpass;
+	renderPassInfo.dependencyCount = 1;
+	renderPassInfo.pDependencies = &dependency;
 
 	assertSuccess(vkCreateRenderPass(logicalDevice, &renderPassInfo, nullptr, &renderPass),
 			"Failed to create render pass.");
+}
+
+void VulkanNativeApp::drawFrame() {
+	uint32_t imageIndex;
+	vkAcquireNextImageKHR(logicalDevice, swapchain, std::numeric_limits<uint64_t>::max(),
+			imageAvailabilitySemaphore, VK_NULL_HANDLE, &imageIndex);
+
+	VkSubmitInfo submitInfo = {};
+	submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+
+	VkSemaphore waitSemaphores[] = {imageAvailabilitySemaphore};
+	VkPipelineStageFlags waitStages[] = {VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT};
+	submitInfo.waitSemaphoreCount = 1;
+	submitInfo.pWaitSemaphores = waitSemaphores;
+	submitInfo.pWaitDstStageMask = waitStages;
+
+	submitInfo.commandBufferCount = 1;
+	submitInfo.pCommandBuffers = &commandBuffers[imageIndex];
+
+	VkSemaphore signalSemaphores[] = {renderCompletionSemaphore};
+	submitInfo.signalSemaphoreCount = 1;
+	submitInfo.pSignalSemaphores = signalSemaphores;
+
+	assertSuccess(vkQueueSubmit(graphicsQueue, 1, &submitInfo, VK_NULL_HANDLE),
+			"Failed to submit draw command buffer.");
+
+	VkPresentInfoKHR presentInfo = {};
+	presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
+
+	presentInfo.waitSemaphoreCount = 1;
+	presentInfo.pWaitSemaphores = signalSemaphores;
+
+	VkSwapchainKHR swapChains[] = {swapchain};
+	presentInfo.swapchainCount = 1;
+	presentInfo.pSwapchains = swapChains;
+
+	presentInfo.pImageIndices = &imageIndex;
+
+	vkQueuePresentKHR(presentQueue, &presentInfo);
 }

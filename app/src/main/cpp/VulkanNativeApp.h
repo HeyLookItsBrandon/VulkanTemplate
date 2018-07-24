@@ -63,6 +63,12 @@ class VulkanNativeApp : public BaseNativeApp {
 		std::vector<VkFramebuffer> swapchainFramebuffers;
 		VkCommandPool commandPool;
 		std::vector<VkCommandBuffer> commandBuffers;
+		VkSemaphore imageAvailabilitySemaphore;
+		VkSemaphore renderCompletionSemaphore;
+
+		VkAttachmentDescription colorAttachment;
+		VkSubpassDescription subpass;
+		bool initialized = false;
 
 		void createInstance(VkInstance& instance);
 		void registerDebugReportCallback(VkInstance &instance,
@@ -105,6 +111,9 @@ class VulkanNativeApp : public BaseNativeApp {
 		void createFramebuffers(const SwapChainSupportDetails &swapChainSupportDetails);
 		void createCommandPool(const DeviceInfo &deviceInfo);
 		void createCommandBuffers(const SwapChainSupportDetails &swapChainSupportDetails);
+		void createSemaphores();
+
+		void drawFrame();
 };
 
 #endif
