@@ -40,7 +40,6 @@ class VulkanNativeApp : public BaseNativeApp {
 		void onWindowInitialized() override;
 		void onWindowTerminated() override;
 		void handleMainLoop(long bootTime) override;
-		long getMainLoopEventWaitTime() override;
 
 		virtual void onReportingEvent(const char *message);
 
@@ -69,6 +68,8 @@ class VulkanNativeApp : public BaseNativeApp {
 		VkAttachmentDescription colorAttachment;
 		VkSubpassDescription subpass;
 		bool initialized = false;
+
+		void setInitialized(bool initialized);
 
 		void createInstance(VkInstance& instance);
 		void registerDebugReportCallback(VkInstance &instance,

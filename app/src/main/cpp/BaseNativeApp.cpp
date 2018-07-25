@@ -55,7 +55,12 @@ void BaseNativeApp::processEvents(android_app *app) {
 }
 
 long BaseNativeApp::getMainLoopEventWaitTime() {
-	return -1;
+	return mainLoopEventWaitTime;
+}
+
+void BaseNativeApp::setMainLoopEventWaitTime(long timeout) {
+	mainLoopEventWaitTime = timeout;
+	ALooper_wake(ALooper_forThread());
 }
 
 void BaseNativeApp::handleMainLoop(long bootTime) {}

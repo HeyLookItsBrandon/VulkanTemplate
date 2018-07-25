@@ -34,11 +34,21 @@ class BaseNativeApp {
 		virtual void onLowMemory();
 		virtual void onSaveInstanceState();
 
-		virtual long getMainLoopEventWaitTime();
 		virtual void handleMainLoop(long bootTime);
+		long getMainLoopEventWaitTime();
+
+		/**
+		 * Sets how long the main loop should wait for Looper events to be processed. A value of -1
+		 * will block indefinitely and 0 will continue immediately. This call has the side effect of
+		 * waking the main looper.
+		 *
+		 * @param timeout The timeout in milliseconds.
+		 */
+		void setMainLoopEventWaitTime(long timeout);
 
 	private:
 		android_app* application;
+		long mainLoopEventWaitTime = -1;
 
 		void processEvents(android_app *app);
 		static void delegateAppCommand(struct android_app* app, int32_t command);

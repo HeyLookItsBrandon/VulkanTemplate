@@ -87,11 +87,11 @@ void VulkanNativeApp::initializeDisplay() {
 	createCommandBuffers(swapChainDetails);
 	createSemaphores();
 
-	initialized = true;
+	setInitialized(true);
 }
 
 void VulkanNativeApp::deinitializeDisplay() {
-	initialized = false;
+	setInitialized(false);
 
 	vkDestroySemaphore(logicalDevice, renderCompletionSemaphore, nullptr);
 	vkDestroySemaphore(logicalDevice, imageAvailabilitySemaphore, nullptr);
@@ -396,8 +396,9 @@ void VulkanNativeApp::handleMainLoop(long bootTime) {
 	}
 }
 
-long VulkanNativeApp::getMainLoopEventWaitTime() {
-	return 0;
+void VulkanNativeApp::setInitialized(bool initialized) {
+	this->initialized = initialized;
+	setMainLoopEventWaitTime(initialized ? 0  : -1);
 }
 
 void VulkanNativeApp::createImageViews(const SwapChainSupportDetails& swapChainSupportDetails) {
