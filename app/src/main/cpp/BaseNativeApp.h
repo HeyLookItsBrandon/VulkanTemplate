@@ -34,7 +34,10 @@ class BaseNativeApp {
 		virtual void onLowMemory();
 		virtual void onSaveInstanceState();
 
+		virtual void beforeMainLoop();
 		virtual void handleMainLoop(long bootTime);
+		virtual void afterMainLoop();
+
 		long getMainLoopEventWaitTime();
 
 		/**
@@ -50,7 +53,6 @@ class BaseNativeApp {
 		android_app* application;
 		long mainLoopEventWaitTime = -1;
 
-		void processEvents(android_app *app);
 		static void delegateAppCommand(struct android_app* app, int32_t command);
 		static int32_t delegateInputEvent(struct android_app* app, AInputEvent* event);
 };

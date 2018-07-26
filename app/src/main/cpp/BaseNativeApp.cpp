@@ -13,7 +13,31 @@ void BaseNativeApp::run() {
 	application -> onAppCmd = delegateAppCommand;
 	application -> onInputEvent = delegateInputEvent;
 
-	processEvents(application);
+	beforeMainLoop();
+
+	timespec time = {};
+	android_poll_source *source;
+	while(application->destroyRequested == 0) {
+		while (ALooper_pollAll(getMainLoopEventWaitTime(), nullptr, nullptr, (void **) &source) >= 0) {
+			if (source != nullptr) {
+				source -> process(application, source);
+			}
+
+			if (application->destroyRequested != 0) {
+				break;
+			}
+
+			if (!application->window) {
+				continue;
+			}
+		}
+
+		// Because this uses ns precision, it may be a little expensive to use
+		clock_gettime(CLOCK_BOOTTIME, &time);
+		handleMainLoop(time.tv_sec * 1000 + time.tv_nsec / 1000000);
+	}
+
+	afterMainLoop();
 }
 
 void BaseNativeApp::delegateAppCommand(struct android_app* app, int32_t command) {
@@ -26,34 +50,6 @@ int32_t BaseNativeApp::delegateInputEvent(struct android_app* app, AInputEvent* 
 	return android -> handleInput(app, event);
 }
 
-void BaseNativeApp::processEvents(android_app *app) {
-	timespec ts = {};
-
-	while(true) {
-		struct android_poll_source *source;
-
-		// An interval of -1 will cause ALooper_pollAll to block. Considering using 0 while doing
-		// work that should continue regardless of an event happening
-		while (ALooper_pollAll(getMainLoopEventWaitTime(), nullptr, nullptr, (void **) &source) >= 0) {
-			if (source != nullptr) {
-				source -> process(app, source);
-			}
-
-			if (app->destroyRequested != 0) {
-				return;
-			}
-
-			if (!app->window) {
-				continue;
-			}
-		}
-
-		// Because this uses ns precision, it may be a little expensive to use
-		clock_gettime(CLOCK_BOOTTIME, &ts);
-		handleMainLoop(ts.tv_sec * 1000 + ts.tv_nsec / 1000000);
-	}
-}
-
 long BaseNativeApp::getMainLoopEventWaitTime() {
 	return mainLoopEventWaitTime;
 }
@@ -63,7 +59,9 @@ void BaseNativeApp::setMainLoopEventWaitTime(long timeout) {
 	ALooper_wake(ALooper_forThread());
 }
 
+void BaseNativeApp::beforeMainLoop() {}
 void BaseNativeApp::handleMainLoop(long bootTime) {}
+void BaseNativeApp::afterMainLoop() {}
 
 void BaseNativeApp::handleAppCommand(struct android_app* app, int32_t command) {
 	switch(command) {

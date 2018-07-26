@@ -93,6 +93,8 @@ void VulkanNativeApp::initializeDisplay() {
 void VulkanNativeApp::deinitializeDisplay() {
 	setInitialized(false);
 
+	vkDeviceWaitIdle(logicalDevice);
+
 	vkDestroySemaphore(logicalDevice, renderCompletionSemaphore, nullptr);
 	vkDestroySemaphore(logicalDevice, imageAvailabilitySemaphore, nullptr);
 
@@ -311,7 +313,7 @@ VkSurfaceFormatKHR VulkanNativeApp::pickFormat(const std::vector<VkSurfaceFormat
 		}
 	}
 
-	return formats[0]; // Okay, I give up. Let's give this a try.
+	return formats[0]; // "Okay, I give up. Let's give this a try."
 }
 
 VkPresentModeKHR VulkanNativeApp::pickPresentMode(const std::vector<VkPresentModeKHR>& presentModes) {
@@ -386,8 +388,6 @@ void VulkanNativeApp::createSwapchain(
 	assertSuccess(result, "Failed to create swap chain.");
 
 	getSwapchainImages(device, swapchain, swapchainImages);
-
-	// TODO Save image format and extent for later
 }
 
 void VulkanNativeApp::handleMainLoop(long bootTime) {
