@@ -85,7 +85,7 @@ void VulkanNativeApp::initializeDisplay() {
 	createFramebuffers(swapChainDetails);
 	createCommandPool(deviceInfo);
 	createCommandBuffers(swapChainDetails);
-	createSemaphores();
+	createSynchronizationStructures();
 
 	setInitialized(true);
 }
@@ -95,8 +95,11 @@ void VulkanNativeApp::deinitializeDisplay() {
 
 	vkDeviceWaitIdle(logicalDevice);
 
-	vkDestroySemaphore(logicalDevice, renderCompletionSemaphore, nullptr);
-	vkDestroySemaphore(logicalDevice, imageAvailabilitySemaphore, nullptr);
+	for(int i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
+		vkDestroySemaphore(logicalDevice, renderCompletionSemaphores[i], nullptr);
+		vkDestroySemaphore(logicalDevice, imageAvailabilitySemaphores[i], nullptr);
+		vkDestroyFence(logicalDevice, inFlightFences[i], nullptr);
+	}
 
 	vkDestroyCommandPool(logicalDevice, commandPool, nullptr);
 
@@ -608,14 +611,26 @@ void VulkanNativeApp::createCommandBuffers(const SwapChainSupportDetails &swapCh
 	}
 }
 
-void VulkanNativeApp::createSemaphores() {
+void VulkanNativeApp::createSynchronizationStructures() {
 	VkSemaphoreCreateInfo semaphoreInfo = {};
 	semaphoreInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
 
-	assertSuccess(vkCreateSemaphore(logicalDevice, &semaphoreInfo, nullptr, &imageAvailabilitySemaphore),
-			"Failed to create semaphore.");
-	assertSuccess(vkCreateSemaphore(logicalDevice, &semaphoreInfo, nullptr, &renderCompletionSemaphore),
-			"Failed to create semaphore.");
+	VkFenceCreateInfo fenceCreationInfo = {};
+	fenceCreationInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
+	fenceCreationInfo.flags = VK_FENCE_CREATE_SIGNALED_BIT;
+
+	imageAvailabilitySemaphores.resize(MAX_FRAMES_IN_FLIGHT);
+	renderCompletionSemaphores.resize(MAX_FRAMES_IN_FLIGHT);
+	inFlightFences.resize(MAX_FRAMES_IN_FLIGHT);
+
+	for(int i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
+		assertSuccess(vkCreateSemaphore(logicalDevice, &semaphoreInfo, nullptr, &imageAvailabilitySemaphores[i]),
+				"Failed to create semaphore.");
+		assertSuccess(vkCreateSemaphore(logicalDevice, &semaphoreInfo, nullptr, &renderCompletionSemaphores[i]),
+				"Failed to create semaphore.");
+		assertSuccess(vkCreateFence(logicalDevice, &fenceCreationInfo, nullptr, &inFlightFences[i]),
+				"Failed to create fence.");
+	}
 }
 
 void VulkanNativeApp::createRenderPass(SwapChainSupportDetails swapChainDetails) {
@@ -661,14 +676,17 @@ void VulkanNativeApp::createRenderPass(SwapChainSupportDetails swapChainDetails)
 }
 
 void VulkanNativeApp::drawFrame() {
+	vkWaitForFences(logicalDevice, 1, &inFlightFences[frameNumber], VK_TRUE, std::numeric_limits<uint64_t>::max());
+	vkResetFences(logicalDevice, 1, &inFlightFences[frameNumber]);
+
 	uint32_t imageIndex;
 	vkAcquireNextImageKHR(logicalDevice, swapchain, std::numeric_limits<uint64_t>::max(),
-			imageAvailabilitySemaphore, VK_NULL_HANDLE, &imageIndex);
+			imageAvailabilitySemaphores[frameNumber], VK_NULL_HANDLE, &imageIndex);
 
 	VkSubmitInfo submitInfo = {};
 	submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
 
-	VkSemaphore waitSemaphores[] = {imageAvailabilitySemaphore};
+	VkSemaphore waitSemaphores[] = {imageAvailabilitySemaphores[frameNumber]};
 	VkPipelineStageFlags waitStages[] = {VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT};
 	submitInfo.waitSemaphoreCount = 1;
 	submitInfo.pWaitSemaphores = waitSemaphores;
@@ -677,11 +695,11 @@ void VulkanNativeApp::drawFrame() {
 	submitInfo.commandBufferCount = 1;
 	submitInfo.pCommandBuffers = &commandBuffers[imageIndex];
 
-	VkSemaphore signalSemaphores[] = {renderCompletionSemaphore};
+	VkSemaphore signalSemaphores[] = {renderCompletionSemaphores[frameNumber]};
 	submitInfo.signalSemaphoreCount = 1;
 	submitInfo.pSignalSemaphores = signalSemaphores;
 
-	assertSuccess(vkQueueSubmit(graphicsQueue, 1, &submitInfo, VK_NULL_HANDLE),
+	assertSuccess(vkQueueSubmit(graphicsQueue, 1, &submitInfo, inFlightFences[frameNumber]),
 			"Failed to submit draw command buffer.");
 
 	VkPresentInfoKHR presentInfo = {};
@@ -697,4 +715,6 @@ void VulkanNativeApp::drawFrame() {
 	presentInfo.pImageIndices = &imageIndex;
 
 	vkQueuePresentKHR(presentQueue, &presentInfo);
+
+	frameNumber = (frameNumber + 1) % MAX_FRAMES_IN_FLIGHT;
 }

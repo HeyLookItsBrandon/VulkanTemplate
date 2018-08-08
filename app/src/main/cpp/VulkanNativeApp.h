@@ -47,6 +47,8 @@ class VulkanNativeApp : public BaseNativeApp {
 		const bool debug;
 		const uint32_t extentWidth = 800;
 		const uint32_t extentHeight = 600;
+		const int MAX_FRAMES_IN_FLIGHT = 2;
+
 		VkInstance instance = {};
 		VkDebugReportCallbackEXT reportCallback = {};
 		VkSurfaceKHR surface;
@@ -62,8 +64,12 @@ class VulkanNativeApp : public BaseNativeApp {
 		std::vector<VkFramebuffer> swapchainFramebuffers;
 		VkCommandPool commandPool;
 		std::vector<VkCommandBuffer> commandBuffers;
-		VkSemaphore imageAvailabilitySemaphore;
-		VkSemaphore renderCompletionSemaphore;
+
+		std::vector<VkSemaphore> imageAvailabilitySemaphores;
+		std::vector<VkSemaphore> renderCompletionSemaphores;
+		std::vector<VkFence> inFlightFences;
+
+		unsigned int frameNumber = 0;
 
 		VkAttachmentDescription colorAttachment;
 		VkSubpassDescription subpass;
@@ -112,7 +118,7 @@ class VulkanNativeApp : public BaseNativeApp {
 		void createFramebuffers(const SwapChainSupportDetails &swapChainSupportDetails);
 		void createCommandPool(const DeviceInfo &deviceInfo);
 		void createCommandBuffers(const SwapChainSupportDetails &swapChainSupportDetails);
-		void createSemaphores();
+		void createSynchronizationStructures();
 
 		void drawFrame();
 };
