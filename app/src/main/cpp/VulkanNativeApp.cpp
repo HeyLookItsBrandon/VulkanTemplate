@@ -58,15 +58,15 @@ void VulkanNativeApp::initializeDisplay() {
 
 	surface = createSurface(instance);
 
-	DeviceInfo deviceInfo = pickPhysicalDevice(surface);
+	deviceInfo = pickPhysicalDevice(surface);
 
-	SwapChainSupportDetails swapChainDetails = {};
-	swapChainDetails.format = pickFormat(deviceInfo.surfaceFormats);
-	swapChainDetails.presentMode = pickPresentMode(deviceInfo.presentModes);
-	VkSurfaceCapabilitiesKHR capabilities = getPhysicalDeviceSurfaceCapabilities(
+	swapchainDetails = {};
+	swapchainDetails.format = pickFormat(deviceInfo.surfaceFormats);
+	swapchainDetails.presentMode = pickPresentMode(deviceInfo.presentModes);
+	surfaceCapabilities = getPhysicalDeviceSurfaceCapabilities(
 			deviceInfo.physicalDevice, deviceInfo.surface);
-	swapChainDetails.swapExtent = pickExtent(capabilities);
-	swapChainDetails.imageCount = pickImageCount(capabilities);
+	swapchainDetails.swapExtent = pickExtent(surfaceCapabilities);
+	swapchainDetails.imageCount = pickImageCount(surfaceCapabilities);
 
 	createLogicalDevice(deviceInfo, logicalDevice);
 	vkGetDeviceQueue(logicalDevice, deviceInfo.queueFamilyIndex, 0, &graphicsQueue);
@@ -75,16 +75,16 @@ void VulkanNativeApp::initializeDisplay() {
 	createSwapchain(
 			swapchain,
 			logicalDevice,
-			swapChainDetails,
+			swapchainDetails,
 			deviceInfo,
-			capabilities);
+			surfaceCapabilities);
 
-	createImageViews(swapChainDetails);
-	createRenderPass(swapChainDetails);
-	createGraphicsPipeline(swapChainDetails);
-	createFramebuffers(swapChainDetails);
+	createImageViews(swapchainDetails);
+	createRenderPass(swapchainDetails);
+	createGraphicsPipeline(swapchainDetails);
+	createFramebuffers(swapchainDetails);
 	createCommandPool(deviceInfo);
-	createCommandBuffers(swapChainDetails);
+	createCommandBuffers(swapchainDetails);
 	createSynchronizationStructures();
 
 	setInitialized(true);
@@ -95,6 +95,8 @@ void VulkanNativeApp::deinitializeDisplay() {
 
 	vkDeviceWaitIdle(logicalDevice);
 
+	cleanupSwapchain();
+
 	for(int i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
 		vkDestroySemaphore(logicalDevice, renderCompletionSemaphores[i], nullptr);
 		vkDestroySemaphore(logicalDevice, imageAvailabilitySemaphores[i], nullptr);
@@ -102,20 +104,6 @@ void VulkanNativeApp::deinitializeDisplay() {
 	}
 
 	vkDestroyCommandPool(logicalDevice, commandPool, nullptr);
-
-	for (auto framebuffer : swapchainFramebuffers) {
-		vkDestroyFramebuffer(logicalDevice, framebuffer, nullptr);
-	}
-
-	vkDestroyPipeline(logicalDevice, graphicsPipeline, nullptr);
-	vkDestroyPipelineLayout(logicalDevice, pipelineLayout, nullptr);
-	vkDestroyRenderPass(logicalDevice, renderPass, nullptr);
-
-	for(const VkImageView& view : swapchainImageViews) {
-		vkDestroyImageView(logicalDevice, view, nullptr);
-	}
-
-	vkDestroySwapchainKHR(logicalDevice, swapchain, nullptr);
 
 	vkDestroyDevice(logicalDevice, nullptr);
 
@@ -335,9 +323,12 @@ VkPresentModeKHR VulkanNativeApp::pickPresentMode(const std::vector<VkPresentMod
 
 VkExtent2D VulkanNativeApp::pickExtent(const VkSurfaceCapabilitiesKHR& capabilities) {
 	if (capabilities.currentExtent.width == std::numeric_limits<uint32_t>::max()) {
-		return {
-				clamp(extentWidth, capabilities.minImageExtent.width, capabilities.maxImageExtent.width),
-				clamp(extentHeight, capabilities.minImageExtent.height, capabilities.maxImageExtent.height)};
+		uint32_t width = clamp((uint32_t) ANativeWindow_getWidth(getApplication() ->  window),
+				capabilities.minImageExtent.width, capabilities.maxImageExtent.width);
+		uint32_t height = clamp((uint32_t) ANativeWindow_getHeight(getApplication() ->  window),
+				capabilities.minImageExtent.height, capabilities.maxImageExtent.height);
+
+		return {width, height};
 	} else {
 		return capabilities.currentExtent;
 	}
@@ -633,9 +624,9 @@ void VulkanNativeApp::createSynchronizationStructures() {
 	}
 }
 
-void VulkanNativeApp::createRenderPass(SwapChainSupportDetails swapChainDetails) {
+void VulkanNativeApp::createRenderPass(SwapChainSupportDetails swapchainDetails) {
 	colorAttachment = {};
-	colorAttachment.format = swapChainDetails.format.format;
+	colorAttachment.format = swapchainDetails.format.format;
 	colorAttachment.samples = VK_SAMPLE_COUNT_1_BIT;
 	colorAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
 	colorAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
@@ -677,11 +668,16 @@ void VulkanNativeApp::createRenderPass(SwapChainSupportDetails swapChainDetails)
 
 void VulkanNativeApp::drawFrame() {
 	vkWaitForFences(logicalDevice, 1, &inFlightFences[frameNumber], VK_TRUE, std::numeric_limits<uint64_t>::max());
-	vkResetFences(logicalDevice, 1, &inFlightFences[frameNumber]);
 
 	uint32_t imageIndex;
-	vkAcquireNextImageKHR(logicalDevice, swapchain, std::numeric_limits<uint64_t>::max(),
+	VkResult imageAcquisitionResult = vkAcquireNextImageKHR(logicalDevice, swapchain, std::numeric_limits<uint64_t>::max(),
 			imageAvailabilitySemaphores[frameNumber], VK_NULL_HANDLE, &imageIndex);
+	if(imageAcquisitionResult == VK_ERROR_OUT_OF_DATE_KHR) {
+		recreateSwapchain();
+		return;
+	} else if (imageAcquisitionResult != VK_SUCCESS && imageAcquisitionResult != VK_SUBOPTIMAL_KHR) {
+		throw std::runtime_error("Failed to acquire swapchain image.");
+	}
 
 	VkSubmitInfo submitInfo = {};
 	submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
@@ -699,6 +695,7 @@ void VulkanNativeApp::drawFrame() {
 	submitInfo.signalSemaphoreCount = 1;
 	submitInfo.pSignalSemaphores = signalSemaphores;
 
+	vkResetFences(logicalDevice, 1, &inFlightFences[frameNumber]);
 	assertSuccess(vkQueueSubmit(graphicsQueue, 1, &submitInfo, inFlightFences[frameNumber]),
 			"Failed to submit draw command buffer.");
 
@@ -714,7 +711,49 @@ void VulkanNativeApp::drawFrame() {
 
 	presentInfo.pImageIndices = &imageIndex;
 
-	vkQueuePresentKHR(presentQueue, &presentInfo);
+	VkResult presentationResult = vkQueuePresentKHR(presentQueue, &presentInfo);
+	if(presentationResult == VK_ERROR_OUT_OF_DATE_KHR || presentationResult == VK_SUBOPTIMAL_KHR || framebufferResized) {
+		framebufferResized = false;
+		recreateSwapchain();
+	} else if(presentationResult != VK_SUCCESS) {
+		throw std::runtime_error("Failed to present swapchain image.");
+	}
 
 	frameNumber = (frameNumber + 1) % MAX_FRAMES_IN_FLIGHT;
+}
+
+void VulkanNativeApp::recreateSwapchain() {
+	vkDeviceWaitIdle(logicalDevice);
+
+	cleanupSwapchain();
+
+	createSwapchain(swapchain, logicalDevice, swapchainDetails, deviceInfo, surfaceCapabilities);
+	createImageViews(swapchainDetails);
+	createRenderPass(swapchainDetails);
+	createGraphicsPipeline(swapchainDetails);
+	createFramebuffers(swapchainDetails);
+	createCommandBuffers(swapchainDetails);
+}
+
+void VulkanNativeApp::cleanupSwapchain() {
+	for (auto framebuffer : swapchainFramebuffers) {
+		vkDestroyFramebuffer(logicalDevice, framebuffer, nullptr);
+	}
+
+	vkFreeCommandBuffers(logicalDevice, commandPool, static_cast<uint32_t>(commandBuffers.size()), commandBuffers.data());
+
+	vkDestroyPipeline(logicalDevice, graphicsPipeline, nullptr);
+	vkDestroyPipelineLayout(logicalDevice, pipelineLayout, nullptr);
+	vkDestroyRenderPass(logicalDevice, renderPass, nullptr);
+
+	for(const VkImageView& view : swapchainImageViews) {
+		vkDestroyImageView(logicalDevice, view, nullptr);
+	}
+
+	vkDestroySwapchainKHR(logicalDevice, swapchain, nullptr);
+
+}
+
+void VulkanNativeApp::onWindowResized() {
+	framebufferResized = true;
 }

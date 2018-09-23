@@ -39,14 +39,13 @@ class VulkanNativeApp : public BaseNativeApp {
 
 		void onWindowInitialized() override;
 		void onWindowTerminated() override;
+		void onWindowResized() override;
 		void handleMainLoop(long bootTime) override;
 
 		virtual void onReportingEvent(const char *message);
 
 	private:
 		const bool debug;
-		const uint32_t extentWidth = 800;
-		const uint32_t extentHeight = 600;
 		const int MAX_FRAMES_IN_FLIGHT = 2;
 
 		VkInstance instance = {};
@@ -56,6 +55,9 @@ class VulkanNativeApp : public BaseNativeApp {
 		VkQueue graphicsQueue;
 		VkQueue presentQueue;
 		VkSwapchainKHR swapchain;
+		SwapChainSupportDetails swapchainDetails;
+		DeviceInfo deviceInfo;
+		VkSurfaceCapabilitiesKHR surfaceCapabilities;
 		std::vector<VkImage> swapchainImages;
 		std::vector<VkImageView> swapchainImageViews;
 		VkRenderPass renderPass;
@@ -68,8 +70,9 @@ class VulkanNativeApp : public BaseNativeApp {
 		std::vector<VkSemaphore> imageAvailabilitySemaphores;
 		std::vector<VkSemaphore> renderCompletionSemaphores;
 		std::vector<VkFence> inFlightFences;
-
 		unsigned int frameNumber = 0;
+
+		bool framebufferResized = false;
 
 		VkAttachmentDescription colorAttachment;
 		VkSubpassDescription subpass;
@@ -113,7 +116,7 @@ class VulkanNativeApp : public BaseNativeApp {
 
 		void createImageViews(const SwapChainSupportDetails& swapChainSupportDetails);
 
-		void createRenderPass(SwapChainSupportDetails swapChainDetails);
+		void createRenderPass(SwapChainSupportDetails swapchainDetails);
 		void createGraphicsPipeline(SwapChainSupportDetails swapChainDetails);
 		void createFramebuffers(const SwapChainSupportDetails &swapChainSupportDetails);
 		void createCommandPool(const DeviceInfo &deviceInfo);
@@ -121,6 +124,9 @@ class VulkanNativeApp : public BaseNativeApp {
 		void createSynchronizationStructures();
 
 		void drawFrame();
+
+		void cleanupSwapchain();
+		void recreateSwapchain();
 };
 
 #endif
