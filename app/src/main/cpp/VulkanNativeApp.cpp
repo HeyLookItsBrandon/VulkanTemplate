@@ -74,13 +74,13 @@ void VulkanNativeApp::initializeDisplay() {
 	swapchainDetails.swapExtent = pickExtent(surfaceCapabilities);
 	swapchainDetails.imageCount = pickImageCount(surfaceCapabilities);
 
-	createLogicalDevice(deviceInfo, logicalDevice);
-	vkGetDeviceQueue(logicalDevice, deviceInfo.queueFamilyIndex, 0, &graphicsQueue);
-	vkGetDeviceQueue(logicalDevice, deviceInfo.presentationFamilyIndex, 0, &presentQueue);
+	createLogicalDevice(deviceInfo, device);
+	vkGetDeviceQueue(device, deviceInfo.queueFamilyIndex, 0, &graphicsQueue);
+	vkGetDeviceQueue(device, deviceInfo.presentationFamilyIndex, 0, &presentQueue);
 
 	createSwapchain(
 			swapchain,
-			logicalDevice,
+			device,
 			swapchainDetails,
 			deviceInfo,
 			surfaceCapabilities);
@@ -100,22 +100,22 @@ void VulkanNativeApp::initializeDisplay() {
 void VulkanNativeApp::deinitializeDisplay() {
 	setInitialized(false);
 
-	vkDeviceWaitIdle(logicalDevice);
+	vkDeviceWaitIdle(device);
 
 	cleanupSwapchain();
 
 	for(int i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
-		vkDestroySemaphore(logicalDevice, renderCompletionSemaphores[i], nullptr);
-		vkDestroySemaphore(logicalDevice, imageAvailabilitySemaphores[i], nullptr);
-		vkDestroyFence(logicalDevice, inFlightFences[i], nullptr);
+		vkDestroySemaphore(device, renderCompletionSemaphores[i], nullptr);
+		vkDestroySemaphore(device, imageAvailabilitySemaphores[i], nullptr);
+		vkDestroyFence(device, inFlightFences[i], nullptr);
 	}
 
-	vkDestroyBuffer(logicalDevice, vertexBuffer, nullptr);
-	vkFreeMemory(logicalDevice, vertexBufferMemory, nullptr);
+	vkDestroyBuffer(device, vertexBuffer, nullptr);
+	vkFreeMemory(device, vertexBufferMemory, nullptr);
 
-	vkDestroyCommandPool(logicalDevice, commandPool, nullptr);
+	vkDestroyCommandPool(device, commandPool, nullptr);
 
-	vkDestroyDevice(logicalDevice, nullptr);
+	vkDestroyDevice(device, nullptr);
 
 	if(debug) {
 		destroyDebugReportCallback(instance, reportCallback, nullptr);
@@ -423,7 +423,7 @@ void VulkanNativeApp::createImageViews(const SwapChainSupportDetails& swapChainS
 		createInfo.subresourceRange.baseArrayLayer = 0;
 		createInfo.subresourceRange.layerCount = 1;
 
-		VkResult result = vkCreateImageView(logicalDevice, &createInfo, nullptr, &swapchainImageViews[i]);
+		VkResult result = vkCreateImageView(device, &createInfo, nullptr, &swapchainImageViews[i]);
 		assertSuccess(result, "Failed to create image view.");
 	}
 }
@@ -431,11 +431,11 @@ void VulkanNativeApp::createImageViews(const SwapChainSupportDetails& swapChainS
 void VulkanNativeApp::createGraphicsPipeline(SwapChainSupportDetails swapChainDetails) {
 	std::vector<char> vertexShaderBytecode = readAsset(
 			getAssetManager(), "shaders/shader_base.vert.spv");
-	VkShaderModule vertexShaderModule = createShaderModule(logicalDevice, vertexShaderBytecode);
+	VkShaderModule vertexShaderModule = createShaderModule(device, vertexShaderBytecode);
 
 	std::vector<char> fragmentShaderBytecode = readAsset(
 			getAssetManager(), "shaders/shader_base.frag.spv");
-	VkShaderModule fragmentShaderModule = createShaderModule(logicalDevice, fragmentShaderBytecode);
+	VkShaderModule fragmentShaderModule = createShaderModule(device, fragmentShaderBytecode);
 
 	VkPipelineShaderStageCreateInfo vertexShaderStageInfo = {};
 	vertexShaderStageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
@@ -516,7 +516,7 @@ void VulkanNativeApp::createGraphicsPipeline(SwapChainSupportDetails swapChainDe
 
 	VkPipelineLayoutCreateInfo pipelineLayoutInfo = {};
 	pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
-	assertSuccess(vkCreatePipelineLayout(logicalDevice, &pipelineLayoutInfo, nullptr, &pipelineLayout),
+	assertSuccess(vkCreatePipelineLayout(device, &pipelineLayoutInfo, nullptr, &pipelineLayout),
 			"Failed to create pipeline layout.");
 
 	VkGraphicsPipelineCreateInfo pipelineInfo = {};
@@ -538,11 +538,11 @@ void VulkanNativeApp::createGraphicsPipeline(SwapChainSupportDetails swapChainDe
 	pipelineInfo.basePipelineHandle = VK_NULL_HANDLE; // Optional
 	pipelineInfo.basePipelineIndex = -1; // Optional
 
-	assertSuccess(vkCreateGraphicsPipelines(logicalDevice, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &graphicsPipeline),
+	assertSuccess(vkCreateGraphicsPipelines(device, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &graphicsPipeline),
 			"failed to create graphics pipeline!");
 
-	vkDestroyShaderModule(logicalDevice, fragmentShaderModule, nullptr);
-	vkDestroyShaderModule(logicalDevice, vertexShaderModule, nullptr);
+	vkDestroyShaderModule(device, fragmentShaderModule, nullptr);
+	vkDestroyShaderModule(device, vertexShaderModule, nullptr);
 }
 
 void VulkanNativeApp::createFramebuffers(const SwapChainSupportDetails &swapChainSupportDetails) {
@@ -560,7 +560,7 @@ void VulkanNativeApp::createFramebuffers(const SwapChainSupportDetails &swapChai
 		framebufferInfo.height = swapChainSupportDetails.swapExtent.height;
 		framebufferInfo.layers = 1;
 
-		assertSuccess(vkCreateFramebuffer(logicalDevice, &framebufferInfo, nullptr,
+		assertSuccess(vkCreateFramebuffer(device, &framebufferInfo, nullptr,
 				&swapchainFramebuffers[i]), "Failed to create framebuffer");
 	}
 }
@@ -571,7 +571,7 @@ void VulkanNativeApp::createCommandPool(const DeviceInfo &deviceInfo) {
 	poolInfo.queueFamilyIndex = deviceInfo.queueFamilyIndex;
 	poolInfo.flags = 0; // Optional
 
-	assertSuccess(vkCreateCommandPool(logicalDevice, &poolInfo, nullptr, &commandPool),
+	assertSuccess(vkCreateCommandPool(device, &poolInfo, nullptr, &commandPool),
 			"Failed to create command pool.");
 }
 
@@ -582,10 +582,10 @@ void VulkanNativeApp::createVertexBuffer() {
 	bufferInfo.usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
 	bufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 
-	assertSuccess(vkCreateBuffer(logicalDevice, &bufferInfo, nullptr, &vertexBuffer),
+	assertSuccess(vkCreateBuffer(device, &bufferInfo, nullptr, &vertexBuffer),
 			"Failed to create vertex buffer.");
 
-	VkMemoryRequirements memoryRequirements = getBufferMemoryRequirements(logicalDevice, vertexBuffer);
+	VkMemoryRequirements memoryRequirements = getBufferMemoryRequirements(device, vertexBuffer);
 
 	VkMemoryAllocateInfo allocInfo = {};
 	allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
@@ -595,14 +595,14 @@ void VulkanNativeApp::createVertexBuffer() {
 			memoryRequirements.memoryTypeBits,
 			VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
 
-	assertSuccess(vkAllocateMemory(logicalDevice, &allocInfo, nullptr, &vertexBufferMemory),
+	assertSuccess(vkAllocateMemory(device, &allocInfo, nullptr, &vertexBufferMemory),
 			"Failed to allocate vertex buffer memory.");
 
-	vkBindBufferMemory(logicalDevice, vertexBuffer, vertexBufferMemory, 0);
+	vkBindBufferMemory(device, vertexBuffer, vertexBufferMemory, 0);
 	void* data;
-	vkMapMemory(logicalDevice, vertexBufferMemory, 0, bufferInfo.size, 0, &data);
+	vkMapMemory(device, vertexBufferMemory, 0, bufferInfo.size, 0, &data);
 	memcpy(data, vertices.data(), (size_t) bufferInfo.size);
-	vkUnmapMemory(logicalDevice, vertexBufferMemory);
+	vkUnmapMemory(device, vertexBufferMemory);
 }
 
 void VulkanNativeApp::createCommandBuffers(const SwapChainSupportDetails &swapChainSupportDetails) {
@@ -614,7 +614,7 @@ void VulkanNativeApp::createCommandBuffers(const SwapChainSupportDetails &swapCh
 	allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
 	allocInfo.commandBufferCount = (uint32_t) commandBuffers.size();
 
-	assertSuccess(vkAllocateCommandBuffers(logicalDevice, &allocInfo, commandBuffers.data()),
+	assertSuccess(vkAllocateCommandBuffers(device, &allocInfo, commandBuffers.data()),
 			"Failed to allocate command buffers.");
 
 	for (size_t i = 0; i < commandBuffers.size(); i++) {
@@ -664,11 +664,11 @@ void VulkanNativeApp::createSynchronizationStructures() {
 	inFlightFences.resize(MAX_FRAMES_IN_FLIGHT);
 
 	for(int i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
-		assertSuccess(vkCreateSemaphore(logicalDevice, &semaphoreInfo, nullptr, &imageAvailabilitySemaphores[i]),
+		assertSuccess(vkCreateSemaphore(device, &semaphoreInfo, nullptr, &imageAvailabilitySemaphores[i]),
 				"Failed to create semaphore.");
-		assertSuccess(vkCreateSemaphore(logicalDevice, &semaphoreInfo, nullptr, &renderCompletionSemaphores[i]),
+		assertSuccess(vkCreateSemaphore(device, &semaphoreInfo, nullptr, &renderCompletionSemaphores[i]),
 				"Failed to create semaphore.");
-		assertSuccess(vkCreateFence(logicalDevice, &fenceCreationInfo, nullptr, &inFlightFences[i]),
+		assertSuccess(vkCreateFence(device, &fenceCreationInfo, nullptr, &inFlightFences[i]),
 				"Failed to create fence.");
 	}
 }
@@ -711,15 +711,15 @@ void VulkanNativeApp::createRenderPass(SwapChainSupportDetails swapchainDetails)
 	renderPassInfo.dependencyCount = 1;
 	renderPassInfo.pDependencies = &dependency;
 
-	assertSuccess(vkCreateRenderPass(logicalDevice, &renderPassInfo, nullptr, &renderPass),
+	assertSuccess(vkCreateRenderPass(device, &renderPassInfo, nullptr, &renderPass),
 			"Failed to create render pass.");
 }
 
 void VulkanNativeApp::drawFrame() {
-	vkWaitForFences(logicalDevice, 1, &inFlightFences[frameNumber], VK_TRUE, std::numeric_limits<uint64_t>::max());
+	vkWaitForFences(device, 1, &inFlightFences[frameNumber], VK_TRUE, std::numeric_limits<uint64_t>::max());
 
 	uint32_t imageIndex;
-	VkResult imageAcquisitionResult = vkAcquireNextImageKHR(logicalDevice, swapchain, std::numeric_limits<uint64_t>::max(),
+	VkResult imageAcquisitionResult = vkAcquireNextImageKHR(device, swapchain, std::numeric_limits<uint64_t>::max(),
 			imageAvailabilitySemaphores[frameNumber], VK_NULL_HANDLE, &imageIndex);
 	if(imageAcquisitionResult == VK_ERROR_OUT_OF_DATE_KHR) {
 		recreateSwapchain();
@@ -744,7 +744,7 @@ void VulkanNativeApp::drawFrame() {
 	submitInfo.signalSemaphoreCount = 1;
 	submitInfo.pSignalSemaphores = signalSemaphores;
 
-	vkResetFences(logicalDevice, 1, &inFlightFences[frameNumber]);
+	vkResetFences(device, 1, &inFlightFences[frameNumber]);
 	assertSuccess(vkQueueSubmit(graphicsQueue, 1, &submitInfo, inFlightFences[frameNumber]),
 			"Failed to submit draw command buffer.");
 
@@ -772,11 +772,11 @@ void VulkanNativeApp::drawFrame() {
 }
 
 void VulkanNativeApp::recreateSwapchain() {
-	vkDeviceWaitIdle(logicalDevice);
+	vkDeviceWaitIdle(device);
 
 	cleanupSwapchain();
 
-	createSwapchain(swapchain, logicalDevice, swapchainDetails, deviceInfo, surfaceCapabilities);
+	createSwapchain(swapchain, device, swapchainDetails, deviceInfo, surfaceCapabilities);
 	createImageViews(swapchainDetails);
 	createRenderPass(swapchainDetails);
 	createGraphicsPipeline(swapchainDetails);
@@ -786,20 +786,20 @@ void VulkanNativeApp::recreateSwapchain() {
 
 void VulkanNativeApp::cleanupSwapchain() {
 	for (auto framebuffer : swapchainFramebuffers) {
-		vkDestroyFramebuffer(logicalDevice, framebuffer, nullptr);
+		vkDestroyFramebuffer(device, framebuffer, nullptr);
 	}
 
-	vkFreeCommandBuffers(logicalDevice, commandPool, static_cast<uint32_t>(commandBuffers.size()), commandBuffers.data());
+	vkFreeCommandBuffers(device, commandPool, static_cast<uint32_t>(commandBuffers.size()), commandBuffers.data());
 
-	vkDestroyPipeline(logicalDevice, graphicsPipeline, nullptr);
-	vkDestroyPipelineLayout(logicalDevice, pipelineLayout, nullptr);
-	vkDestroyRenderPass(logicalDevice, renderPass, nullptr);
+	vkDestroyPipeline(device, graphicsPipeline, nullptr);
+	vkDestroyPipelineLayout(device, pipelineLayout, nullptr);
+	vkDestroyRenderPass(device, renderPass, nullptr);
 
 	for(const VkImageView& view : swapchainImageViews) {
-		vkDestroyImageView(logicalDevice, view, nullptr);
+		vkDestroyImageView(device, view, nullptr);
 	}
 
-	vkDestroySwapchainKHR(logicalDevice, swapchain, nullptr);
+	vkDestroySwapchainKHR(device, swapchain, nullptr);
 
 }
 

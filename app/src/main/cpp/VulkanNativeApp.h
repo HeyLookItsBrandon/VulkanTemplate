@@ -83,7 +83,7 @@ class VulkanNativeApp : public BaseNativeApp {
 		VkInstance instance = {};
 		VkDebugReportCallbackEXT reportCallback = {};
 		VkSurfaceKHR surface;
-		VkDevice logicalDevice = {};
+		VkDevice device = {};
 		VkQueue graphicsQueue;
 		VkQueue presentQueue;
 		VkSwapchainKHR swapchain;
