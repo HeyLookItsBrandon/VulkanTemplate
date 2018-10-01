@@ -5,8 +5,40 @@
 #include "vulkan_wrapper/vulkan_wrapper.h"
 
 #include <vector>
+#include <array>
 #include <tuple>
 #include <memory>
+#include "glm/glm.hpp"
+
+struct Vertex {
+	glm::vec2 position;
+	glm::vec3 color;
+
+	static VkVertexInputBindingDescription getBindingDescription() {
+		VkVertexInputBindingDescription bindingDescription = {};
+		bindingDescription.binding = 0;
+		bindingDescription.stride = sizeof(Vertex);
+		bindingDescription.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
+
+		return bindingDescription;
+	}
+
+	static std::array<VkVertexInputAttributeDescription, 2> getAttributeDescriptions() {
+		std::array<VkVertexInputAttributeDescription, 2> attributeDescriptions = {};
+
+		attributeDescriptions[0].binding = 0;
+		attributeDescriptions[0].location = 0;
+		attributeDescriptions[0].format = VK_FORMAT_R32G32_SFLOAT;
+		attributeDescriptions[0].offset = offsetof(Vertex, position);
+
+		attributeDescriptions[1].binding = 0;
+		attributeDescriptions[1].location = 1;
+		attributeDescriptions[1].format = VK_FORMAT_R32G32B32_SFLOAT;
+		attributeDescriptions[1].offset = offsetof(Vertex, color);
+
+		return attributeDescriptions;
+	}
+};
 
 struct DeviceInfo {
 	const static unsigned int NONE = static_cast<const unsigned int>(-1);
@@ -64,6 +96,8 @@ class VulkanNativeApp : public BaseNativeApp {
 		VkPipelineLayout pipelineLayout;
 		VkPipeline graphicsPipeline;
 		std::vector<VkFramebuffer> swapchainFramebuffers;
+		VkBuffer vertexBuffer;
+		VkDeviceMemory vertexBufferMemory;
 		VkCommandPool commandPool;
 		std::vector<VkCommandBuffer> commandBuffers;
 
@@ -127,6 +161,11 @@ class VulkanNativeApp : public BaseNativeApp {
 
 		void cleanupSwapchain();
 		void recreateSwapchain();
+
+		void createVertexBuffer();
+		uint32_t pickMemoryTypeIndex(const VkPhysicalDeviceMemoryProperties &memoryProperties,
+				uint32_t requiredMemoryTypeBits,
+				VkMemoryPropertyFlags requiredProperties);
 };
 
 #endif

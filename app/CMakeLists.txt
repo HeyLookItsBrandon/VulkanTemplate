@@ -10,22 +10,15 @@ cmake_minimum_required(VERSION 3.4.1)
 # You can define multiple libraries, and CMake builds them for you.
 # Gradle automatically packages shared libraries with your APK.
 
-add_library( # Sets the name of the library.
-             native-lib
+add_library(native-lib SHARED
+            src/main/cpp/native-lib.cpp
+            src/main/cpp/BaseNativeApp.cpp
+            src/main/cpp/vulkan_wrapper/vulkan_wrapper.cpp
+            src/main/cpp/VulkanNativeApp.cpp
+            src/main/cpp/AssetUtils.cpp)
 
-             # Sets the library as a shared library.
-             SHARED
-
-             # Provides a relative path to your source file(s).
-             src/main/cpp/native-lib.cpp
-             src/main/cpp/BaseNativeApp.cpp
-             src/main/cpp/vulkan_wrapper/vulkan_wrapper.cpp
-             src/main/cpp/VulkanNativeApp.cpp
-             src/main/cpp/AssetUtils.cpp)
-
-# build native_app_glue as a static lib
 add_library(native_app_glue STATIC
-        ${ANDROID_NDK}/sources/android/native_app_glue/android_native_app_glue.c)
+		${ANDROID_NDK}/sources/android/native_app_glue/android_native_app_glue.c)
 
 set(CMAKE_SHARED_LINKER_FLAGS
     "${CMAKE_SHARED_LINKER_FLAGS} -u ANativeActivity_onCreate")
@@ -42,9 +35,14 @@ find_library( # Sets the name of the path variable.
               # Specifies the name of the NDK library that you want CMake to locate.
               log )
 
-target_include_directories(
-        native-lib PUBLIC
-        ${ANDROID_NDK}/sources/android/native_app_glue)
+# As seen at https://github.com/googlesamples/android-ndk/blob/master/endless-tunnel/app/src/main/cpp/CMakeLists.txt
+# An alternative is get_filename_component(glm_dir "glm" ABSOLUTE) and adding glm_dir to
+# target_include_directories. Using include_directories(…) also worked. Not sure which is correct
+# but none of them allowed glm/glm.h to be accessed as a system include, like in examples.
+add_subdirectory(src/main/cpp/glm)
+
+target_include_directories(native-lib
+        PRIVATE ${ANDROID_NDK}/sources/android/native_app_glue)
 
 # Specifies libraries CMake should link to your target library. You
 # can link multiple libraries, such as libraries you define in this

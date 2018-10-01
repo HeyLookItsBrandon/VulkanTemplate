@@ -243,4 +243,18 @@ VkShaderModule createShaderModule(const VkDevice& device, const std::vector<char
 	return shaderModule;
 }
 
+VkMemoryRequirements getBufferMemoryRequirements(const VkDevice& device, const VkBuffer& buffer) {
+	VkMemoryRequirements requirements;
+	vkGetBufferMemoryRequirements(device, buffer, &requirements);
+
+	return requirements;
+}
+
+VkPhysicalDeviceMemoryProperties getPhysicalDeviceMemoryProperties(const VkPhysicalDevice& physicalDevice) {
+	VkPhysicalDeviceMemoryProperties properties;
+	vkGetPhysicalDeviceMemoryProperties(physicalDevice, &properties);
+
+	return properties;
+}
+
 #endif

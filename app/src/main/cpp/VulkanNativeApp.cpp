@@ -15,14 +15,20 @@ const std::vector<const char*> INSTANCE_EXTENSION_NAMES = {
 const std::vector<const char*> REQUIRED_DEVICE_EXTENSION_NAMES = {
 		VK_KHR_SWAPCHAIN_EXTENSION_NAME };
 
-// At the time of writing, these five layers make up the VK_LAYER_LUNARG_standard_validation meta
-// layer, which according to presentation slides from LunarG isn't available on Android.
+// At the time of writing, these five layers make up the VK_LAYER_LUNARG_standard_validation
+// meta-layer. According to presentation slides from LunarG, that isn't available in the Android
+// implementation, so this lists them out manuals.
 const std::vector<const char *> VALIDATION_LAYER_NAMES = {
 		"VK_LAYER_GOOGLE_threading",
 		"VK_LAYER_LUNARG_parameter_validation",
 		"VK_LAYER_LUNARG_object_tracker",
 		"VK_LAYER_LUNARG_core_validation",
 		"VK_LAYER_GOOGLE_unique_objects"};
+
+const std::vector<Vertex> vertices = {
+		{{0.0f, -0.5f}, {1.0f, 0.0f, 0.0f}},
+		{{0.5f, 0.5f}, {0.0f, 1.0f, 0.0f}},
+		{{-0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}}};
 
 bool isDebugBuild() {
 	bool debug = false;
@@ -84,6 +90,7 @@ void VulkanNativeApp::initializeDisplay() {
 	createGraphicsPipeline(swapchainDetails);
 	createFramebuffers(swapchainDetails);
 	createCommandPool(deviceInfo);
+	createVertexBuffer();
 	createCommandBuffers(swapchainDetails);
 	createSynchronizationStructures();
 
@@ -102,6 +109,9 @@ void VulkanNativeApp::deinitializeDisplay() {
 		vkDestroySemaphore(logicalDevice, imageAvailabilitySemaphores[i], nullptr);
 		vkDestroyFence(logicalDevice, inFlightFences[i], nullptr);
 	}
+
+	vkDestroyBuffer(logicalDevice, vertexBuffer, nullptr);
+	vkFreeMemory(logicalDevice, vertexBufferMemory, nullptr);
 
 	vkDestroyCommandPool(logicalDevice, commandPool, nullptr);
 
@@ -441,10 +451,14 @@ void VulkanNativeApp::createGraphicsPipeline(SwapChainSupportDetails swapChainDe
 
 	VkPipelineShaderStageCreateInfo shaderStages[] = {vertexShaderStageInfo, fragmentShaderStageInfo};
 
+	auto bindingDescription = Vertex::getBindingDescription();
+	auto attributeDescriptions = Vertex::getAttributeDescriptions();
 	VkPipelineVertexInputStateCreateInfo vertexInputInfo = {};
 	vertexInputInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
-	vertexInputInfo.vertexBindingDescriptionCount = 0;
-	vertexInputInfo.vertexAttributeDescriptionCount = 0;
+	vertexInputInfo.vertexBindingDescriptionCount = 1;
+	vertexInputInfo.vertexAttributeDescriptionCount = static_cast<uint32_t>(attributeDescriptions.size());
+	vertexInputInfo.pVertexBindingDescriptions = &bindingDescription;
+	vertexInputInfo.pVertexAttributeDescriptions = attributeDescriptions.data();
 
 	VkPipelineInputAssemblyStateCreateInfo inputAssembly = {};
 	inputAssembly.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
@@ -561,6 +575,36 @@ void VulkanNativeApp::createCommandPool(const DeviceInfo &deviceInfo) {
 			"Failed to create command pool.");
 }
 
+void VulkanNativeApp::createVertexBuffer() {
+	VkBufferCreateInfo bufferInfo = {};
+	bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+	bufferInfo.size = sizeof(vertices[0]) * vertices.size();
+	bufferInfo.usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
+	bufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+
+	assertSuccess(vkCreateBuffer(logicalDevice, &bufferInfo, nullptr, &vertexBuffer),
+			"Failed to create vertex buffer.");
+
+	VkMemoryRequirements memoryRequirements = getBufferMemoryRequirements(logicalDevice, vertexBuffer);
+
+	VkMemoryAllocateInfo allocInfo = {};
+	allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+	allocInfo.allocationSize = memoryRequirements.size;
+	allocInfo.memoryTypeIndex = pickMemoryTypeIndex(
+			getPhysicalDeviceMemoryProperties(deviceInfo.physicalDevice),
+			memoryRequirements.memoryTypeBits,
+			VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+
+	assertSuccess(vkAllocateMemory(logicalDevice, &allocInfo, nullptr, &vertexBufferMemory),
+			"Failed to allocate vertex buffer memory.");
+
+	vkBindBufferMemory(logicalDevice, vertexBuffer, vertexBufferMemory, 0);
+	void* data;
+	vkMapMemory(logicalDevice, vertexBufferMemory, 0, bufferInfo.size, 0, &data);
+	memcpy(data, vertices.data(), (size_t) bufferInfo.size);
+	vkUnmapMemory(logicalDevice, vertexBufferMemory);
+}
+
 void VulkanNativeApp::createCommandBuffers(const SwapChainSupportDetails &swapChainSupportDetails) {
 	commandBuffers.resize(swapchainFramebuffers.size());
 
@@ -594,8 +638,13 @@ void VulkanNativeApp::createCommandBuffers(const SwapChainSupportDetails &swapCh
 		renderPassInfo.pClearValues = &clearColor;
 
 		vkCmdBeginRenderPass(commandBuffers[i], &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
-		vkCmdBindPipeline(commandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, graphicsPipeline);
-		vkCmdDraw(commandBuffers[i], 3, 1, 0, 0);
+			vkCmdBindPipeline(commandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, graphicsPipeline);
+
+			VkBuffer vertexBuffers[] = {vertexBuffer};
+			VkDeviceSize offsets[] = {0};
+			vkCmdBindVertexBuffers(commandBuffers[i], 0, 1, vertexBuffers, offsets);
+
+			vkCmdDraw(commandBuffers[i], static_cast<uint32_t>(vertices.size()), 1, 0, 0);
 		vkCmdEndRenderPass(commandBuffers[i]);
 
 		assertSuccess(vkEndCommandBuffer(commandBuffers[i]), "Failed to record command buffer.");
@@ -756,4 +805,18 @@ void VulkanNativeApp::cleanupSwapchain() {
 
 void VulkanNativeApp::onWindowResized() {
 	framebufferResized = true;
+}
+
+uint32_t VulkanNativeApp::pickMemoryTypeIndex(
+		const VkPhysicalDeviceMemoryProperties &memoryProperties,
+		uint32_t requiredMemoryTypeBits,
+		VkMemoryPropertyFlags requiredProperties) {
+	for (uint32_t i = 0; i < memoryProperties.memoryTypeCount; i++) {
+		if (requiredMemoryTypeBits & (1 << i) &&
+				(memoryProperties.memoryTypes[i].propertyFlags & requiredProperties) == requiredProperties) {
+			return i;
+		}
+	}
+
+	throw std::runtime_error("Failed to find suitable memory type.");
 }
