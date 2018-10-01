@@ -38,7 +38,7 @@ class BaseNativeApp {
 		virtual void handleMainLoop(long bootTime);
 		virtual void afterMainLoop();
 
-		long getMainLoopEventWaitTime();
+		int getMainLoopEventWaitTime();
 
 		/**
 		 * Sets how long the main loop should wait for Looper events to be processed. A value of -1
@@ -47,11 +47,11 @@ class BaseNativeApp {
 		 *
 		 * @param timeout The timeout in milliseconds.
 		 */
-		void setMainLoopEventWaitTime(long timeout);
+		void setMainLoopEventWaitTime(int timeout);
 
 	private:
 		android_app* application;
-		long mainLoopEventWaitTime = -1;
+		int mainLoopEventWaitTime = -1;
 
 		static void delegateAppCommand(struct android_app* app, int32_t command);
 		static int32_t delegateInputEvent(struct android_app* app, AInputEvent* event);

@@ -11,7 +11,7 @@ cmake_minimum_required(VERSION 3.4.1)
 # Gradle automatically packages shared libraries with your APK.
 
 add_library(native-lib SHARED
-            src/main/cpp/native-lib.cpp
+            src/main/cpp/main.cpp
             src/main/cpp/BaseNativeApp.cpp
             src/main/cpp/vulkan_wrapper/vulkan_wrapper.cpp
             src/main/cpp/VulkanNativeApp.cpp

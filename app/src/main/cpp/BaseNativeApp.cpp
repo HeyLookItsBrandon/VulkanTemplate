@@ -50,11 +50,11 @@ int32_t BaseNativeApp::delegateInputEvent(struct android_app* app, AInputEvent* 
 	return android -> handleInput(app, event);
 }
 
-long BaseNativeApp::getMainLoopEventWaitTime() {
+int BaseNativeApp::getMainLoopEventWaitTime() {
 	return mainLoopEventWaitTime;
 }
 
-void BaseNativeApp::setMainLoopEventWaitTime(long timeout) {
+void BaseNativeApp::setMainLoopEventWaitTime(int timeout) {
 	mainLoopEventWaitTime = timeout;
 	ALooper_wake(ALooper_forThread());
 }

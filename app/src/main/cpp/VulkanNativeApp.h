@@ -29,12 +29,12 @@ struct Vertex {
 		attributeDescriptions[0].binding = 0;
 		attributeDescriptions[0].location = 0;
 		attributeDescriptions[0].format = VK_FORMAT_R32G32_SFLOAT;
-		attributeDescriptions[0].offset = offsetof(Vertex, position);
+		attributeDescriptions[0].offset = (uint32_t) offsetof(Vertex, position);
 
 		attributeDescriptions[1].binding = 0;
 		attributeDescriptions[1].location = 1;
 		attributeDescriptions[1].format = VK_FORMAT_R32G32B32_SFLOAT;
-		attributeDescriptions[1].offset = offsetof(Vertex, color);
+		attributeDescriptions[1].offset = (uint32_t) offsetof(Vertex, color);
 
 		return attributeDescriptions;
 	}
@@ -78,7 +78,7 @@ class VulkanNativeApp : public BaseNativeApp {
 
 	private:
 		const bool debug;
-		const int MAX_FRAMES_IN_FLIGHT = 2;
+		const u_long MAX_FRAMES_IN_FLIGHT = 2;
 
 		VkInstance instance = {};
 		VkDebugReportCallbackEXT reportCallback = {};
@@ -104,12 +104,11 @@ class VulkanNativeApp : public BaseNativeApp {
 		std::vector<VkSemaphore> imageAvailabilitySemaphores;
 		std::vector<VkSemaphore> renderCompletionSemaphores;
 		std::vector<VkFence> inFlightFences;
-		unsigned int frameNumber = 0;
+		u_long frameNumber = 0;
 
 		bool framebufferResized = false;
 
 		VkAttachmentDescription colorAttachment;
-		VkSubpassDescription subpass;
 		bool initialized = false;
 
 		void setInitialized(bool initialized);
@@ -139,7 +138,7 @@ class VulkanNativeApp : public BaseNativeApp {
 
 		VkExtent2D pickExtent(const VkSurfaceCapabilitiesKHR &capabilities);
 
-		int pickImageCount(VkSurfaceCapabilitiesKHR capabilities);
+		uint32_t pickImageCount(VkSurfaceCapabilitiesKHR capabilities);
 
 		void createSwapchain(
 				VkSwapchainKHR& swapchain,

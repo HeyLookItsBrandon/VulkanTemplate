@@ -344,7 +344,7 @@ VkExtent2D VulkanNativeApp::pickExtent(const VkSurfaceCapabilitiesKHR& capabilit
 	}
 }
 
-int VulkanNativeApp::pickImageCount(VkSurfaceCapabilitiesKHR capabilities) {
+uint32_t VulkanNativeApp::pickImageCount(VkSurfaceCapabilitiesKHR capabilities) {
 	uint32_t desiredCount = capabilities.minImageCount + 1;
 	return capabilities.maxImageCount == 0 ? // 0 means no limit
 			desiredCount :
