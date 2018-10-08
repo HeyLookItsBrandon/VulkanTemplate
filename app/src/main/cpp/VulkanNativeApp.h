@@ -161,7 +161,11 @@ class VulkanNativeApp : public BaseNativeApp {
 		void cleanupSwapchain();
 		void recreateSwapchain();
 
+		void createBuffer(const VkPhysicalDeviceMemoryProperties &memoryProperties,
+				VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties,
+				VkBuffer& buffer, VkDeviceMemory& bufferMemory);
 		void createVertexBuffer();
+		void copyBuffer(VkBuffer sourceBuffer, VkBuffer destinationBuffer, VkDeviceSize size);
 		uint32_t pickMemoryTypeIndex(const VkPhysicalDeviceMemoryProperties &memoryProperties,
 				uint32_t requiredMemoryTypeBits,
 				VkMemoryPropertyFlags requiredProperties);
