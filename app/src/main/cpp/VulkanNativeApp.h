@@ -98,6 +98,8 @@ class VulkanNativeApp : public BaseNativeApp {
 		std::vector<VkFramebuffer> swapchainFramebuffers;
 		VkBuffer vertexBuffer;
 		VkDeviceMemory vertexBufferMemory;
+		VkBuffer indexBuffer;
+		VkDeviceMemory indexBufferMemory;
 		VkCommandPool commandPool;
 		std::vector<VkCommandBuffer> commandBuffers;
 
@@ -164,7 +166,8 @@ class VulkanNativeApp : public BaseNativeApp {
 		void createBuffer(const VkPhysicalDeviceMemoryProperties &memoryProperties,
 				VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties,
 				VkBuffer& buffer, VkDeviceMemory& bufferMemory);
-		void createVertexBuffer();
+		void createVertexBuffer(const VkPhysicalDeviceMemoryProperties &memoryProperties);
+		void createIndexBuffer(const VkPhysicalDeviceMemoryProperties &memoryProperties);
 		void copyBuffer(VkBuffer sourceBuffer, VkBuffer destinationBuffer, VkDeviceSize size);
 		uint32_t pickMemoryTypeIndex(const VkPhysicalDeviceMemoryProperties &memoryProperties,
 				uint32_t requiredMemoryTypeBits,

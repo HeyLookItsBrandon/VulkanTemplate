@@ -30,8 +30,8 @@ successor to [OpenGL](https://www.khronos.org/opengl/), not to mention
 
 When I started considering Vulkan development in late 2017, it wasn't very
 widely-supported. As a Mac user, my access to it was even more limited. As a
-Mac user **with a laptop (and GPU) from 2010,** only one of these options
-seemed possible:
+Mac user **with a laptop (and GPU) from 2010,** Android seemed like the best
+option of these three:
 
 - [MoltenVK](https://github.com/KhronosGroup/MoltenVK) is a Vulkan SDK for Mac
 and iOS that appears to have been acquired by The Khronos Group and
@@ -43,12 +43,12 @@ open-sourced. For me, it had these drawbacks:
   3. Prior to the library being open-sourced, the developer required a $150
   licensing fee if you released software using it.
 - Install Linux on my laptop and develop on Linux, for Linux, using [Lunar G's
-SDK](https://www.lunarg.com/vulkan-sdk/). This would be ideal but like Metal,
-my laptop's old GeForce GT 330M graphics chip doesn't support Vulkan.
+SDK](https://www.lunarg.com/vulkan-sdk/). This would have been ideal but like
+Metal, my laptop's old GeForce GT 330M graphics chip doesn't support Vulkan.
 - LunarG's SDK is also included with the Android NDK. But the emulators don't
-support Vulkan yet and hardware support is/was also pretty limited. The two
-main Vulkan-compatible devices I found were the $300 nVidia Shield tablet and
+support Vulkan yet and hardware support is/was pretty limited. The two main
+Vulkan-compatible devices I found were the $300 nVidia Shield tablet and
 the $180 [Shield TV](https://www.nvidia.com/en-us/shield/shield-tv/).
  
-I went with the Shield TV since it was the least expensive way to experiment with a
-new technology.
+I went with the Shield TV since it was the least expensive way to experiment
+with a new technology.
