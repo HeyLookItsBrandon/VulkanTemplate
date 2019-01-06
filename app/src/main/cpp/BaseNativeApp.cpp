@@ -2,7 +2,6 @@
 #include "AndroidLogging.h"
 
 #include "BaseNativeApp.h"
-#include <ctime>
 
 BaseNativeApp::BaseNativeApp(android_app* app) {
 	application = app;
@@ -15,26 +14,23 @@ void BaseNativeApp::run() {
 
 	beforeMainLoop();
 
-	timespec time = {};
 	android_poll_source *source;
 	while(application->destroyRequested == 0) {
 		while (ALooper_pollAll(getMainLoopEventWaitTime(), nullptr, nullptr, (void **) &source) >= 0) {
 			if (source != nullptr) {
 				source -> process(application, source);
 			}
-
-			if (application->destroyRequested != 0) {
-				break;
-			}
-
-			if (!application->window) {
-				continue;
-			}
 		}
 
-		// Because this uses ns precision, it may be a little expensive to use
-		clock_gettime(CLOCK_BOOTTIME, &time);
-		handleMainLoop(time.tv_sec * 1000 + time.tv_nsec / 1000000);
+		if (application->destroyRequested) {
+			break;
+		}
+
+		if (!application->window) {
+			continue;
+		}
+
+		handleMainLoop();
 	}
 
 	afterMainLoop();
@@ -60,7 +56,7 @@ void BaseNativeApp::setMainLoopEventWaitTime(int timeout) {
 }
 
 void BaseNativeApp::beforeMainLoop() {}
-void BaseNativeApp::handleMainLoop(long bootTime) {}
+void BaseNativeApp::handleMainLoop() {}
 void BaseNativeApp::afterMainLoop() {}
 
 void BaseNativeApp::handleAppCommand(struct android_app* app, int32_t command) {

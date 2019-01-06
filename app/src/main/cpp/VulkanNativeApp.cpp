@@ -32,6 +32,12 @@ const std::vector<Vertex> vertices = {
 		{{-0.5f, 0.5f}, {1.0f, 1.0f, 1.0f}}};
 const std::vector<uint16_t> vertexIndices = { 0, 1, 2, 2, 3, 0 };
 
+struct UniformBufferObject {
+    glm::mat4 model;
+    glm::mat4 view;
+    glm::mat4 projection;
+};
+
 bool isDebugBuild() {
 	bool debug = false;
     #ifndef NDEBUG
@@ -39,6 +45,10 @@ bool isDebugBuild() {
     #endif
 
 	return debug;
+}
+
+std::chrono::steady_clock::time_point now() {
+	return std::chrono::steady_clock::now();
 }
 
 VulkanNativeApp::VulkanNativeApp(android_app* app) : BaseNativeApp(app), debug(isDebugBuild()) {
@@ -89,6 +99,7 @@ void VulkanNativeApp::initializeDisplay() {
 
 	createImageViews(swapchainDetails);
 	createRenderPass(swapchainDetails);
+	createDescriptorSetLayout();
 	createGraphicsPipeline(swapchainDetails);
 	createFramebuffers(swapchainDetails);
 	createCommandPool(deviceInfo);
@@ -97,6 +108,9 @@ void VulkanNativeApp::initializeDisplay() {
 			getPhysicalDeviceMemoryProperties(deviceInfo.physicalDevice);
 	createVertexBuffer(memoryProperties);
 	createIndexBuffer(memoryProperties);
+	createUniformBuffers(memoryProperties);
+	createDescriptorPool();
+	createDescriptorSet();
 
 	createCommandBuffers(swapchainDetails);
 	createSynchronizationStructures();
@@ -110,6 +124,15 @@ void VulkanNativeApp::deinitializeDisplay() {
 	vkDeviceWaitIdle(device);
 
 	cleanupSwapchain();
+
+	vkDestroyDescriptorPool(device, descriptorPool, nullptr);
+
+	for (size_t i = 0; i < swapchainImages.size(); i++) {
+		vkDestroyBuffer(device, uniformBuffers[i], nullptr);
+		vkFreeMemory(device, uniformBuffersMemory[i], nullptr);
+	}
+
+	vkDestroyDescriptorSetLayout(device, descriptorSetLayout, nullptr);
 
 	vkDestroyBuffer(device, indexBuffer, nullptr);
 	vkFreeMemory(device, indexBufferMemory, nullptr);
@@ -404,7 +427,11 @@ void VulkanNativeApp::createSwapchain(
 	getSwapchainImages(device, swapchain, swapchainImages);
 }
 
-void VulkanNativeApp::handleMainLoop(long bootTime) {
+void VulkanNativeApp::beforeMainLoop() {
+	initializationTime = lastFrameTime = now();
+}
+
+void VulkanNativeApp::handleMainLoop() {
 	if(initialized) {
 		drawFrame();
 	}
@@ -501,7 +528,7 @@ void VulkanNativeApp::createGraphicsPipeline(SwapChainSupportDetails swapChainDe
 	rasterizer.polygonMode = VK_POLYGON_MODE_FILL;
 	rasterizer.lineWidth = 1.0f;
 	rasterizer.cullMode = VK_CULL_MODE_BACK_BIT;
-	rasterizer.frontFace = VK_FRONT_FACE_CLOCKWISE;
+	rasterizer.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
 	rasterizer.depthBiasEnable = VK_FALSE;
 
 	VkPipelineMultisampleStateCreateInfo multisampling = {};
@@ -526,6 +553,8 @@ void VulkanNativeApp::createGraphicsPipeline(SwapChainSupportDetails swapChainDe
 
 	VkPipelineLayoutCreateInfo pipelineLayoutInfo = {};
 	pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
+	pipelineLayoutInfo.setLayoutCount = 1;
+	pipelineLayoutInfo.pSetLayouts = &descriptorSetLayout;
 	assertSuccess(vkCreatePipelineLayout(device, &pipelineLayoutInfo, nullptr, &pipelineLayout),
 			"Failed to create pipeline layout.");
 
@@ -663,6 +692,68 @@ void VulkanNativeApp::createIndexBuffer(const VkPhysicalDeviceMemoryProperties &
 	vkFreeMemory(device, stagingBufferMemory, nullptr);
 }
 
+void VulkanNativeApp::createUniformBuffers(const VkPhysicalDeviceMemoryProperties& memoryProperties) {
+	VkDeviceSize bufferSize = sizeof(UniformBufferObject);
+
+	uniformBuffers.resize(swapchainImages.size());
+	uniformBuffersMemory.resize(swapchainImages.size());
+
+	for (size_t i = 0; i < swapchainImages.size(); i++) {
+		createBuffer(memoryProperties,
+				bufferSize,
+				VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+				VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+				uniformBuffers[i],
+				uniformBuffersMemory[i]);
+	}
+}
+
+void VulkanNativeApp::createDescriptorPool() {
+	VkDescriptorPoolSize poolSize = {};
+	poolSize.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+	poolSize.descriptorCount = static_cast<uint32_t>(swapchainImages.size());
+
+	VkDescriptorPoolCreateInfo poolInfo = {};
+	poolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
+	poolInfo.poolSizeCount = 1;
+	poolInfo.pPoolSizes = &poolSize;
+	poolInfo.maxSets = static_cast<uint32_t>(swapchainImages.size());
+
+	assertSuccess(vkCreateDescriptorPool(device, &poolInfo, nullptr, &descriptorPool),
+			"Failed to create descriptor pool.");
+}
+
+void VulkanNativeApp::createDescriptorSet() {
+	std::vector<VkDescriptorSetLayout> layouts(swapchainImages.size(), descriptorSetLayout);
+	VkDescriptorSetAllocateInfo allocInfo = {};
+	allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+	allocInfo.descriptorPool = descriptorPool;
+	allocInfo.descriptorSetCount = static_cast<uint32_t>(swapchainImages.size());
+	allocInfo.pSetLayouts = layouts.data();
+
+	descriptorSets.resize(swapchainImages.size());
+	assertSuccess(vkAllocateDescriptorSets(device, &allocInfo, descriptorSets.data()),
+			"Failed to allocate descriptor sets.");
+
+	for (size_t i = 0; i < swapchainImages.size(); i++) {
+		VkDescriptorBufferInfo bufferInfo = {};
+		bufferInfo.buffer = uniformBuffers[i];
+		bufferInfo.offset = 0;
+		bufferInfo.range = sizeof(UniformBufferObject);
+
+		VkWriteDescriptorSet descriptorWrite = {};
+		descriptorWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+		descriptorWrite.dstSet = descriptorSets[i];
+		descriptorWrite.dstBinding = 0;
+		descriptorWrite.dstArrayElement = 0;
+		descriptorWrite.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+		descriptorWrite.descriptorCount = 1;
+		descriptorWrite.pBufferInfo = &bufferInfo;
+
+		vkUpdateDescriptorSets(device, 1, &descriptorWrite, 0, nullptr);
+	}
+}
+
 void VulkanNativeApp::copyBuffer(VkBuffer sourceBuffer, VkBuffer destinationBuffer, VkDeviceSize size) {
 	VkCommandBufferAllocateInfo allocInfo = {};
 	allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
@@ -736,6 +827,8 @@ void VulkanNativeApp::createCommandBuffers(const SwapChainSupportDetails &swapCh
 			vkCmdBindVertexBuffers(commandBuffers[i], 0, 1, vertexBuffers, offsets);
 			vkCmdBindIndexBuffer(commandBuffers[i], indexBuffer, 0, VK_INDEX_TYPE_UINT16);
 
+			vkCmdBindDescriptorSets(commandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1, &descriptorSets[i], 0, nullptr);
+
 			vkCmdDrawIndexed(commandBuffers[i], static_cast<uint32_t>(vertexIndices.size()), 1, 0, 0, 0);
 		vkCmdEndRenderPass(commandBuffers[i]);
 
@@ -807,7 +900,46 @@ void VulkanNativeApp::createRenderPass(SwapChainSupportDetails swapchainDetails)
 			"Failed to create render pass.");
 }
 
+void VulkanNativeApp::createDescriptorSetLayout() {
+    VkDescriptorSetLayoutBinding uboLayoutBinding = {};
+    uboLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+    uboLayoutBinding.binding = 0;
+    uboLayoutBinding.descriptorCount = 1; // Just one buffer object in what is potentially an array of them
+    uboLayoutBinding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+
+	VkDescriptorSetLayoutCreateInfo layoutInfo = {};
+	layoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+	layoutInfo.bindingCount = 1;
+	layoutInfo.pBindings = &uboLayoutBinding;
+
+	assertSuccess(vkCreateDescriptorSetLayout(device, &layoutInfo, nullptr, &descriptorSetLayout),
+			"Failed to create descriptor set layout.");
+}
+
+void VulkanNativeApp::updateUniformBuffer(uint32_t imageIndex, std::chrono::steady_clock::time_point frameTime) {
+	float secondsSinceEpoch = std::chrono::duration<float>(frameTime - initializationTime).count();
+
+	UniformBufferObject ubo = {};
+	ubo.model = glm::rotate(glm::mat4(1.0f),
+			secondsSinceEpoch * glm::radians(90.0f),
+			glm::vec3(0.0f, 0.0f, 1.0f));
+	ubo.view = glm::lookAt(glm::vec3(2.0f, 2.0f, 2.0f),
+			glm::vec3(0.0f, 0.0f, 0.0f),
+			glm::vec3(0.0f, 0.0f, 1.0f));
+	ubo.projection = glm::perspective(glm::radians(45.0f),
+			swapchainDetails.swapExtent.width / (float) swapchainDetails.swapExtent.height,
+			0.1f, 10.0f);
+	ubo.projection[1][1] *= -1; // Workaround for GLM being left-handed
+
+	void* data;
+	vkMapMemory(device, uniformBuffersMemory[imageIndex], 0, sizeof(ubo), 0, &data);
+	memcpy(data, &ubo, sizeof(ubo));
+	vkUnmapMemory(device, uniformBuffersMemory[imageIndex]);
+}
+
 void VulkanNativeApp::drawFrame() {
+	std::chrono::steady_clock::time_point frameTime = now();
+
 	vkWaitForFences(device, 1, &inFlightFences[frameNumber], VK_TRUE, std::numeric_limits<uint64_t>::max());
 
 	uint32_t imageIndex;
@@ -819,6 +951,8 @@ void VulkanNativeApp::drawFrame() {
 	} else if (imageAcquisitionResult != VK_SUCCESS && imageAcquisitionResult != VK_SUBOPTIMAL_KHR) {
 		throw std::runtime_error("Failed to acquire swapchain image.");
 	}
+
+	updateUniformBuffer(imageIndex, frameTime);
 
 	VkSubmitInfo submitInfo = {};
 	submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
@@ -861,6 +995,8 @@ void VulkanNativeApp::drawFrame() {
 	}
 
 	frameNumber = (frameNumber + 1) % MAX_FRAMES_IN_FLIGHT;
+
+	lastFrameTime = frameTime;
 }
 
 void VulkanNativeApp::recreateSwapchain() {

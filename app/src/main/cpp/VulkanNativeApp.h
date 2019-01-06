@@ -1,6 +1,8 @@
 #ifndef VULKANNATIVEAPP_H
 #define VULKANNATIVEAPP_H
 
+#define GLM_FORCE_RADIANS
+
 #include "BaseNativeApp.h"
 #include "vulkan_wrapper/vulkan_wrapper.h"
 
@@ -8,7 +10,9 @@
 #include <array>
 #include <tuple>
 #include <memory>
+#include <chrono>
 #include "glm/glm.hpp"
+#include "glm/gtc/matrix_transform.hpp"
 
 struct Vertex {
 	glm::vec2 position;
@@ -72,7 +76,8 @@ class VulkanNativeApp : public BaseNativeApp {
 		void onWindowInitialized() override;
 		void onWindowTerminated() override;
 		void onWindowResized() override;
-		void handleMainLoop(long bootTime) override;
+		void beforeMainLoop() override;
+		void handleMainLoop() override;
 
 		virtual void onReportingEvent(const char *message);
 
@@ -93,6 +98,7 @@ class VulkanNativeApp : public BaseNativeApp {
 		std::vector<VkImage> swapchainImages;
 		std::vector<VkImageView> swapchainImageViews;
 		VkRenderPass renderPass;
+		VkDescriptorSetLayout descriptorSetLayout;
 		VkPipelineLayout pipelineLayout;
 		VkPipeline graphicsPipeline;
 		std::vector<VkFramebuffer> swapchainFramebuffers;
@@ -100,8 +106,12 @@ class VulkanNativeApp : public BaseNativeApp {
 		VkDeviceMemory vertexBufferMemory;
 		VkBuffer indexBuffer;
 		VkDeviceMemory indexBufferMemory;
+		std::vector<VkBuffer> uniformBuffers;
+		std::vector<VkDeviceMemory> uniformBuffersMemory;
 		VkCommandPool commandPool;
 		std::vector<VkCommandBuffer> commandBuffers;
+		VkDescriptorPool descriptorPool;
+		std::vector<VkDescriptorSet> descriptorSets;
 
 		std::vector<VkSemaphore> imageAvailabilitySemaphores;
 		std::vector<VkSemaphore> renderCompletionSemaphores;
@@ -109,6 +119,9 @@ class VulkanNativeApp : public BaseNativeApp {
 		u_long frameNumber = 0;
 
 		bool framebufferResized = false;
+
+		std::chrono::steady_clock::time_point initializationTime;
+		std::chrono::steady_clock::time_point lastFrameTime;
 
 		VkAttachmentDescription colorAttachment;
 		bool initialized = false;
@@ -152,12 +165,14 @@ class VulkanNativeApp : public BaseNativeApp {
 		void createImageViews(const SwapChainSupportDetails& swapChainSupportDetails);
 
 		void createRenderPass(SwapChainSupportDetails swapchainDetails);
+		void createDescriptorSetLayout();
 		void createGraphicsPipeline(SwapChainSupportDetails swapChainDetails);
 		void createFramebuffers(const SwapChainSupportDetails &swapChainSupportDetails);
 		void createCommandPool(const DeviceInfo &deviceInfo);
 		void createCommandBuffers(const SwapChainSupportDetails &swapChainSupportDetails);
 		void createSynchronizationStructures();
 
+		void updateUniformBuffer(uint32_t index, std::chrono::steady_clock::time_point frameTime);
 		void drawFrame();
 
 		void cleanupSwapchain();
@@ -168,6 +183,9 @@ class VulkanNativeApp : public BaseNativeApp {
 				VkBuffer& buffer, VkDeviceMemory& bufferMemory);
 		void createVertexBuffer(const VkPhysicalDeviceMemoryProperties &memoryProperties);
 		void createIndexBuffer(const VkPhysicalDeviceMemoryProperties &memoryProperties);
+		void createUniformBuffers(const VkPhysicalDeviceMemoryProperties &memoryProperties);
+		void createDescriptorPool();
+		void createDescriptorSet();
 		void copyBuffer(VkBuffer sourceBuffer, VkBuffer destinationBuffer, VkDeviceSize size);
 		uint32_t pickMemoryTypeIndex(const VkPhysicalDeviceMemoryProperties &memoryProperties,
 				uint32_t requiredMemoryTypeBits,

@@ -35,7 +35,7 @@ class BaseNativeApp {
 		virtual void onSaveInstanceState();
 
 		virtual void beforeMainLoop();
-		virtual void handleMainLoop(long bootTime);
+		virtual void handleMainLoop();
 		virtual void afterMainLoop();
 
 		int getMainLoopEventWaitTime();

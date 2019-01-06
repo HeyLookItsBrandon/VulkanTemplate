@@ -7,11 +7,11 @@ properties.load(project.rootProject.file('local.properties').newDataInputStream(
 def ndkDir = properties.getProperty('ndk.dir')
 
 android {
-    compileSdkVersion 26
+    compileSdkVersion 28
     defaultConfig {
         applicationId "com.coalminesoftware.vulkan.template"
         minSdkVersion 24
-        targetSdkVersion 27
+        targetSdkVersion 28
         versionCode 1
         versionName "1.0"
         testInstrumentationRunner "android.support.test.runner.AndroidJUnitRunner"
