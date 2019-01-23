@@ -47,10 +47,6 @@ bool isDebugBuild() {
 	return debug;
 }
 
-std::chrono::steady_clock::time_point now() {
-	return std::chrono::steady_clock::now();
-}
-
 VulkanNativeApp::VulkanNativeApp(android_app* app) : BaseNativeApp(app), debug(isDebugBuild()) {
 	InitVulkan();
 }
@@ -916,12 +912,12 @@ void VulkanNativeApp::createDescriptorSetLayout() {
 			"Failed to create descriptor set layout.");
 }
 
-void VulkanNativeApp::updateUniformBuffer(uint32_t imageIndex, std::chrono::steady_clock::time_point frameTime) {
-	float secondsSinceEpoch = std::chrono::duration<float>(frameTime - initializationTime).count();
+void VulkanNativeApp::updateUniformBuffer(uint32_t imageIndex, TimeoPoint frameTime) {
+	float secondsSinceStart = secondsBetween(initializationTime, frameTime);
 
 	UniformBufferObject ubo = {};
 	ubo.model = glm::rotate(glm::mat4(1.0f),
-			secondsSinceEpoch * glm::radians(90.0f),
+			secondsSinceStart * glm::radians(90.0f),
 			glm::vec3(0.0f, 0.0f, 1.0f));
 	ubo.view = glm::lookAt(glm::vec3(2.0f, 2.0f, 2.0f),
 			glm::vec3(0.0f, 0.0f, 0.0f),

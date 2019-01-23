@@ -5,12 +5,12 @@
 
 #include "BaseNativeApp.h"
 #include "vulkan_wrapper/vulkan_wrapper.h"
+#include "TimeUtils.h"
 
 #include <vector>
 #include <array>
 #include <tuple>
 #include <memory>
-#include <chrono>
 #include "glm/glm.hpp"
 #include "glm/gtc/matrix_transform.hpp"
 
@@ -120,8 +120,8 @@ class VulkanNativeApp : public BaseNativeApp {
 
 		bool framebufferResized = false;
 
-		std::chrono::steady_clock::time_point initializationTime;
-		std::chrono::steady_clock::time_point lastFrameTime;
+		TimeoPoint initializationTime;
+		TimeoPoint lastFrameTime;
 
 		VkAttachmentDescription colorAttachment;
 		bool initialized = false;
@@ -172,7 +172,7 @@ class VulkanNativeApp : public BaseNativeApp {
 		void createCommandBuffers(const SwapChainSupportDetails &swapChainSupportDetails);
 		void createSynchronizationStructures();
 
-		void updateUniformBuffer(uint32_t index, std::chrono::steady_clock::time_point frameTime);
+		void updateUniformBuffer(uint32_t index, TimeoPoint frameTime);
 		void drawFrame();
 
 		void cleanupSwapchain();

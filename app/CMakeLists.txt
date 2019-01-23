@@ -15,7 +15,8 @@ add_library(native-lib SHARED
             src/main/cpp/BaseNativeApp.cpp
             src/main/cpp/vulkan_wrapper/vulkan_wrapper.cpp
             src/main/cpp/VulkanNativeApp.cpp
-            src/main/cpp/AssetUtils.cpp)
+            src/main/cpp/AssetUtils.cpp
+			src/main/cpp/TimeUtils.cpp)
 
 add_library(native_app_glue STATIC
 		${ANDROID_NDK}/sources/android/native_app_glue/android_native_app_glue.c)
