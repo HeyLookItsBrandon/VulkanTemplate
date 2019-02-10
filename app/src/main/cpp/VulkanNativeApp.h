@@ -120,8 +120,8 @@ class VulkanNativeApp : public BaseNativeApp {
 
 		bool framebufferResized = false;
 
-		TimeoPoint initializationTime;
-		TimeoPoint lastFrameTime;
+		TimePoint initializationTime;
+		TimePoint lastFrameTime;
 
 		VkAttachmentDescription colorAttachment;
 		bool initialized = false;
@@ -172,7 +172,7 @@ class VulkanNativeApp : public BaseNativeApp {
 		void createCommandBuffers(const SwapChainSupportDetails &swapChainSupportDetails);
 		void createSynchronizationStructures();
 
-		void updateUniformBuffer(uint32_t index, TimeoPoint frameTime);
+		void updateUniformBuffer(uint32_t index, TimePoint frameTime);
 		void drawFrame();
 
 		void cleanupSwapchain();

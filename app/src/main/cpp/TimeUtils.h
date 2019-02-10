@@ -3,10 +3,10 @@
 
 #include <chrono>
 
-typedef std::chrono::steady_clock::time_point TimeoPoint;
+typedef std::chrono::steady_clock::time_point TimePoint;
 
-TimeoPoint now();
+TimePoint now();
 
-float secondsBetween(TimeoPoint a, TimeoPoint b);
+float secondsBetween(TimePoint a, TimePoint b);
 
 #endif

@@ -912,7 +912,7 @@ void VulkanNativeApp::createDescriptorSetLayout() {
 			"Failed to create descriptor set layout.");
 }
 
-void VulkanNativeApp::updateUniformBuffer(uint32_t imageIndex, TimeoPoint frameTime) {
+void VulkanNativeApp::updateUniformBuffer(uint32_t imageIndex, TimePoint frameTime) {
 	float secondsSinceStart = secondsBetween(initializationTime, frameTime);
 
 	UniformBufferObject ubo = {};

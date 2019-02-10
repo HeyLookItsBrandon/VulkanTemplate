@@ -1,5 +1,5 @@
-#ifndef CAPABILITYQUERIER_H
-#define CAPABILITYQUERIER_H
+#ifndef CAPABILITYUTILS_H
+#define CAPABILITYUTILS_H
 
 #include <string>
 #include <cstring>
