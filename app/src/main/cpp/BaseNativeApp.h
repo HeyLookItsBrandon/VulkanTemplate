@@ -1,5 +1,5 @@
-#ifndef BASENATIVEAPP_H
-#define BASENATIVEAPP_H
+#ifndef BASE_NATIVE_APP_H
+#define BASE_NATIVE_APP_H
 
 #include <android_native_app_glue.h>
 

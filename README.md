@@ -3,6 +3,9 @@
 This project is a work in progress. It aims to (eventually) provide a clean, concise template for
 implementing a native [Vulkan](https://www.khronos.org/vulkan/) app on Android.
 
+The Vulkan-specific code is mostly based on code from Alexander Overvoorde's
+[Vulkan-Tutorial.com](https://vulkan-tutorial.com/), ported to Android and modularized a bit.
+
 ## Motivation
 
 Even with previous OpenGL experience, I haven't found Google/LunarG's

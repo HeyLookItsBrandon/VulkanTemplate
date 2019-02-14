@@ -1,4 +1,5 @@
 #include "VulkanNativeApp.h"
+
 #include "AndroidLogging.h"
 #include "CapabilityUtils.h"
 #include "MathUtils.h"
@@ -215,7 +216,7 @@ VKAPI_ATTR VkBool32 VKAPI_CALL VulkanNativeApp::delegateReportCallback( VkDebugR
 const DeviceInfo VulkanNativeApp::pickPhysicalDevice(const VkSurfaceKHR& surface) {
 	std::vector<VkPhysicalDevice> physicalDevices = getPhysicalDevices(instance);
 	LOG_DEBUG("Found %lu physical devices.", physicalDevices.size());
-	if (physicalDevices.size() == 0) {
+	if (physicalDevices.empty()) {
 		throw std::runtime_error("No physical devices found.");
 	}
 
@@ -362,9 +363,9 @@ VkPresentModeKHR VulkanNativeApp::pickPresentMode(const std::vector<VkPresentMod
 
 VkExtent2D VulkanNativeApp::pickExtent(const VkSurfaceCapabilitiesKHR& capabilities) {
 	if (capabilities.currentExtent.width == std::numeric_limits<uint32_t>::max()) {
-		uint32_t width = clamp((uint32_t) ANativeWindow_getWidth(getApplication() ->  window),
+		uint32_t width = clamp((uint32_t) ANativeWindow_getWidth(getApplication()->window),
 				capabilities.minImageExtent.width, capabilities.maxImageExtent.width);
-		uint32_t height = clamp((uint32_t) ANativeWindow_getHeight(getApplication() ->  window),
+		uint32_t height = clamp((uint32_t) ANativeWindow_getHeight(getApplication()->window),
 				capabilities.minImageExtent.height, capabilities.maxImageExtent.height);
 
 		return {width, height};

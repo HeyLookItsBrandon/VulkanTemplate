@@ -1,16 +1,16 @@
+#include "BaseNativeApp.h"
+
 #include <android_native_app_glue.h>
 #include "AndroidLogging.h"
-
-#include "BaseNativeApp.h"
 
 BaseNativeApp::BaseNativeApp(android_app* app) {
 	application = app;
 }
 
 void BaseNativeApp::run() {
-	application -> userData = this;
-	application -> onAppCmd = delegateAppCommand;
-	application -> onInputEvent = delegateInputEvent;
+	application->userData = this;
+	application->onAppCmd = delegateAppCommand;
+	application->onInputEvent = delegateInputEvent;
 
 	beforeMainLoop();
 
@@ -18,7 +18,7 @@ void BaseNativeApp::run() {
 	while(application->destroyRequested == 0) {
 		while (ALooper_pollAll(getMainLoopEventWaitTime(), nullptr, nullptr, (void **) &source) >= 0) {
 			if (source != nullptr) {
-				source -> process(application, source);
+				source->process(application, source);
 			}
 		}
 
@@ -38,12 +38,12 @@ void BaseNativeApp::run() {
 
 void BaseNativeApp::delegateAppCommand(struct android_app* app, int32_t command) {
 	BaseNativeApp* android = reinterpret_cast<BaseNativeApp*>(app->userData);
-	android -> handleAppCommand(app, command);
+	android->handleAppCommand(app, command);
 }
 
 int32_t BaseNativeApp::delegateInputEvent(struct android_app* app, AInputEvent* event) {
 	BaseNativeApp* android = reinterpret_cast<BaseNativeApp*>(app->userData);
-	return android -> handleInput(app, event);
+	return android->handleInput(app, event);
 }
 
 int BaseNativeApp::getMainLoopEventWaitTime() {
@@ -121,7 +121,7 @@ const android_app* BaseNativeApp::getApplication() {
 }
 
 AAssetManager* BaseNativeApp::getAssetManager() {
-	return application -> activity -> assetManager;
+	return application->activity->assetManager;
 }
 
 int32_t BaseNativeApp::handleInput(struct android_app* app, AInputEvent* event) {

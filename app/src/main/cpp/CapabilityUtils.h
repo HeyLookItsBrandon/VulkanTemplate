@@ -1,5 +1,5 @@
-#ifndef CAPABILITYUTILS_H
-#define CAPABILITYUTILS_H
+#ifndef CAPABILITY_UTILS_H
+#define CAPABILITY_UTILS_H
 
 #include <string>
 #include <cstring>

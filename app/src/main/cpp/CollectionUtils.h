@@ -1,5 +1,5 @@
-#ifndef COLLECTIONUTILS_H
-#define COLLECTIONUTILS_H
+#ifndef COLLECTION_UTILS_H
+#define COLLECTION_UTILS_H
 
 #include <set>
 #include <vector>

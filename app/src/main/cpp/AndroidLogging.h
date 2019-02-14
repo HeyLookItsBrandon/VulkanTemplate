@@ -1,5 +1,5 @@
-#ifndef ANDROIDLOGGING_H
-#define ANDROIDLOGGING_H
+#ifndef ANDROID_LOGGING_H
+#define ANDROID_LOGGING_H
 
 #include <android/log.h>
 

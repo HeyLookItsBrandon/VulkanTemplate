@@ -1,5 +1,5 @@
-#ifndef ASSETUTILS_H
-#define ASSETUTILS_H
+#ifndef ASSET_UTILS_H
+#define ASSET_UTILS_H
 
 #include <vector>
 #include <string>

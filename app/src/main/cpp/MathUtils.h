@@ -1,5 +1,5 @@
-#ifndef MATHUTILS_H
-#define MATHUTILS_H
+#ifndef MATH_UTILS_H
+#define MATH_UTILS_H
 
 #include <algorithm>
 
